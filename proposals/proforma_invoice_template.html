@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Proforma Invoice — Divya Stones</title>
+  <style>
+    /* ── Reset & base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Georgia', serif;
+      font-size: 11pt;
+      color: #1a1a1a;
+      background: #f4f4f4;
+    }
+
+    /* ── Page shell — A4 centred ──────────────────────────────── */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 20px auto;
+      background: #ffffff;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header band ──────────────────────────────────────────── */
+    .header {
+      background: #8B1A1A;
+      color: #ffffff;
+      padding: 22px 28px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .header-left .company-name {
+      font-size: 22pt;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .header-left .tagline {
+      font-size: 8.5pt;
+      margin-top: 3px;
+      opacity: 0.85;
+      letter-spacing: 0.5px;
+      font-style: italic;
+    }
+
+    .header-left .company-details {
+      margin-top: 10px;
+      font-size: 8pt;
+      line-height: 1.7;
+      opacity: 0.9;
+      font-family: 'Arial', sans-serif;
+    }
+
+    .header-right {
+      text-align: right;
+    }
+
+    .doc-title {
+      font-size: 17pt;
+      font-weight: bold;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border: 2px solid rgba(255,255,255,0.6);
+      padding: 6px 14px;
+      margin-bottom: 10px;
+    }
+
+    .header-right .meta-table {
+      font-size: 8.5pt;
+      font-family: 'Arial', sans-serif;
+      border-collapse: collapse;
+    }
+
+    .header-right .meta-table td {
+      padding: 2px 4px;
+    }
+
+    .header-right .meta-table td:first-child {
+      opacity: 0.75;
+      text-align: right;
+      padding-right: 8px;
+    }
+
+    .header-right .meta-table td:last-child {
+      font-weight: bold;
+      text-align: left;
+      background: rgba(255,255,255,0.12);
+      border-radius: 2px;
+      padding: 2px 8px;
+    }
+
+    /* ── Thin accent stripe ───────────────────────────────────── */
+    .accent-stripe {
+      height: 4px;
+      background: linear-gradient(90deg, #C0392B, #8B1A1A, #5D1010);
+    }
+
+    /* ── Body content ─────────────────────────────────────────── */
+    .body {
+      padding: 22px 28px;
+      flex: 1;
+    }
+
+    /* ── Section label ────────────────────────────────────────── */
+    .section-label {
+      font-size: 7.5pt;
+      font-family: 'Arial', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #8B1A1A;
+      font-weight: bold;
+      margin-bottom: 5px;
+      border-bottom: 1px solid #e0c8c8;
+      padding-bottom: 3px;
+    }
+
+    /* ── Two-column info grid ─────────────────────────────────── */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .info-box {
+      background: #fdf9f9;
+      border: 1px solid #e8d5d5;
+      border-left: 3px solid #8B1A1A;
+      padding: 10px 12px;
+      border-radius: 0 3px 3px 0;
+    }
+
+    .info-box table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+    }
+
+    .info-box table td {
+      padding: 2px 0;
+      vertical-align: top;
+    }
+
+    .info-box table td:first-child {
+      color: #666;
+      width: 42%;
+      font-size: 8.5pt;
+    }
+
+    .info-box table td:last-child {
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    /* ── Shipment details bar ─────────────────────────────────── */
+    .shipment-bar {
+      background: #fdf9f9;
+      border: 1px solid #e8d5d5;
+      border-radius: 3px;
+      padding: 10px 14px;
+      margin-bottom: 18px;
+    }
+
+    .shipment-bar table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+    }
+
+    .shipment-bar table td {
+      padding: 3px 8px;
+      vertical-align: top;
+    }
+
+    .shipment-bar table td:first-child {
+      color: #8B1A1A;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      width: 20%;
+    }
+
+    .shipment-bar table td:last-child {
+      font-weight: 600;
+    }
+
+    .shipment-bar table tr:not(:last-child) td {
+      border-bottom: 1px dotted #e0c8c8;
+    }
+
+    /* ── Line items table ─────────────────────────────────────── */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+      margin-bottom: 0;
+    }
+
+    .items-table thead tr {
+      background: #8B1A1A;
+      color: #ffffff;
+    }
+
+    .items-table thead th {
+      padding: 8px 10px;
+      text-align: center;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border: 1px solid #701515;
+      white-space: nowrap;
+    }
+
+    .items-table thead th:nth-child(2) { text-align: left; }
+
+    .items-table tbody tr {
+      border-bottom: 1px solid #e8d5d5;
+    }
+
+    .items-table tbody tr:nth-child(even) {
+      background: #fdf9f9;
+    }
+
+    .items-table tbody tr:hover {
+      background: #faeaea;
+    }
+
+    .items-table tbody td {
+      padding: 9px 10px;
+      border: 1px solid #e8d5d5;
+      vertical-align: middle;
+    }
+
+    .items-table tbody td:nth-child(1) { text-align: center; color: #999; font-size: 8pt; }
+    .items-table tbody td:nth-child(2) { text-align: left; }
+    .items-table tbody td:nth-child(3) { text-align: center; }
+    .items-table tbody td:nth-child(4) { text-align: center; }
+    .items-table tbody td:nth-child(5) { text-align: center; }
+    .items-table tbody td:nth-child(6) { text-align: right; font-weight: 600; }
+    .items-table tbody td:nth-child(7) { text-align: right; }
+    .items-table tbody td:nth-child(8) { text-align: right; font-weight: 600; color: #8B1A1A; }
+
+    /* placeholder rows styling */
+    .items-table tbody td .placeholder {
+      color: #bbb;
+      font-style: italic;
+    }
+
+    /* ── Totals section ───────────────────────────────────────── */
+    .totals-wrap {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 18px;
+      border: 1px solid #e8d5d5;
+      border-top: none;
+    }
+
+    .totals-table {
+      width: 260px;
+      border-collapse: collapse;
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+    }
+
+    .totals-table td {
+      padding: 6px 12px;
+      border-bottom: 1px dotted #e8d5d5;
+    }
+
+    .totals-table td:first-child {
+      color: #555;
+      text-align: right;
+      padding-right: 16px;
+    }
+
+    .totals-table td:last-child {
+      text-align: right;
+      font-weight: 600;
+      width: 110px;
+    }
+
+    .totals-table .total-fob {
+      background: #8B1A1A;
+      color: #ffffff;
+    }
+
+    .totals-table .total-fob td {
+      padding: 8px 12px;
+      border-bottom: none;
+      font-weight: bold;
+      font-size: 10pt;
+    }
+
+    .totals-table .total-fob td:first-child {
+      color: #ffffff;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-size: 8pt;
+    }
+
+    /* ── Amount in words ──────────────────────────────────────── */
+    .amount-words {
+      font-family: 'Arial', sans-serif;
+      font-size: 8.5pt;
+      background: #fdf9f9;
+      border: 1px solid #e8d5d5;
+      padding: 7px 12px;
+      margin-bottom: 16px;
+      border-radius: 2px;
+    }
+
+    .amount-words span { font-weight: bold; }
+
+    /* ── Two-column lower grid ────────────────────────────────── */
+    .lower-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    /* ── Bank details ─────────────────────────────────────────── */
+    .bank-box {
+      background: #fdf9f9;
+      border: 1px solid #e8d5d5;
+      border-left: 3px solid #8B1A1A;
+      padding: 10px 12px;
+      border-radius: 0 3px 3px 0;
+    }
+
+    .bank-box table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'Arial', sans-serif;
+      font-size: 8.5pt;
+    }
+
+    .bank-box table td {
+      padding: 2.5px 0;
+      vertical-align: top;
+    }
+
+    .bank-box table td:first-child {
+      color: #888;
+      width: 44%;
+      font-size: 8pt;
+    }
+
+    .bank-box table td:last-child {
+      font-weight: 600;
+    }
+
+    /* ── Terms & conditions ───────────────────────────────────── */
+    .terms-box {
+      background: #fdf9f9;
+      border: 1px solid #e8d5d5;
+      padding: 10px 12px;
+      border-radius: 3px;
+    }
+
+    .terms-box ul {
+      padding-left: 16px;
+      font-family: 'Arial', sans-serif;
+      font-size: 8.5pt;
+      line-height: 1.75;
+      color: #333;
+    }
+
+    .terms-box ul li {
+      margin-bottom: 2px;
+    }
+
+    /* ── Signature / declaration ──────────────────────────────── */
+    .signature-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #e8d5d5;
+    }
+
+    .declaration {
+      font-family: 'Arial', sans-serif;
+      font-size: 8pt;
+      color: #555;
+      max-width: 55%;
+      line-height: 1.55;
+      font-style: italic;
+    }
+
+    .sig-block {
+      text-align: center;
+      font-family: 'Arial', sans-serif;
+      font-size: 8.5pt;
+    }
+
+    .sig-block .sig-line {
+      width: 170px;
+      border-bottom: 1.5px solid #8B1A1A;
+      margin: 0 auto 4px;
+      height: 36px;
+    }
+
+    .sig-block .sig-label {
+      font-weight: bold;
+      color: #8B1A1A;
+    }
+
+    .sig-block .sig-sub {
+      color: #555;
+      font-size: 8pt;
+    }
+
+    /* ── Footer band ──────────────────────────────────────────── */
+    .footer {
+      background: #8B1A1A;
+      color: rgba(255,255,255,0.75);
+      text-align: center;
+      font-family: 'Arial', sans-serif;
+      font-size: 7.5pt;
+      padding: 9px 28px;
+      letter-spacing: 0.3px;
+    }
+
+    .footer strong {
+      color: #ffffff;
+    }
+
+    /* ── Print overrides ──────────────────────────────────────── */
+    @media print {
+      body { background: #ffffff; }
+      .page { margin: 0; box-shadow: none; width: 100%; min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ═══════════════════════ HEADER ════════════════════════════ -->
+  <div class="header">
+    <div class="header-left">
+      <div class="company-name">Divya Stones</div>
+      <div class="tagline">Verde Guatemala — Indian Green Marble Exporters Since 1999</div>
+      <div class="company-details">
+        Udaipur, Rajasthan 313001, India<br>
+        Phone: +91-94141-67278<br>
+        Email: sales@divyastones.com<br>
+        Website: divyastones.com<br>
+        IEC: [YOUR IEC] &nbsp;|&nbsp; GST: [YOUR GST]
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="doc-title">Proforma Invoice</div>
+      <table class="meta-table">
+        <tr>
+          <td>PI No.</td>
+          <td>DS-PI-[XXXX]</td>
+        </tr>
+        <tr>
+          <td>Date</td>
+          <td>[DD Month YYYY]</td>
+        </tr>
+        <tr>
+          <td>Valid Until</td>
+          <td>[DD Month YYYY]</td>
+        </tr>
+        <tr>
+          <td>Currency</td>
+          <td>USD (US Dollars)</td>
+        </tr>
+        <tr>
+          <td>Country of Origin</td>
+          <td>India</td>
+        </tr>
+        <tr>
+          <td>HS Code</td>
+          <td>2515.12</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="accent-stripe"></div>
+
+  <!-- ═══════════════════════ BODY ══════════════════════════════ -->
+  <div class="body">
+
+    <!-- Buyer + Shipment Info -->
+    <div class="info-grid">
+
+      <div class="info-box">
+        <div class="section-label">Bill To / Consignee</div>
+        <table>
+          <tr><td>Company</td><td>[Buyer Company Name]</td></tr>
+          <tr><td>Address</td><td>[Street, City, State, ZIP]</td></tr>
+          <tr><td>Country</td><td>[Country]</td></tr>
+          <tr><td>Contact</td><td>[Contact Person Name]</td></tr>
+          <tr><td>Phone</td><td>[+X XXX XXX XXXX]</td></tr>
+          <tr><td>Email</td><td>[buyer@email.com]</td></tr>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <div class="section-label">Notify Party (if different)</div>
+        <table>
+          <tr><td>Company</td><td>[Notify Party Name]</td></tr>
+          <tr><td>Address</td><td>[Street, City, State, ZIP]</td></tr>
+          <tr><td>Country</td><td>[Country]</td></tr>
+          <tr><td>Contact</td><td>[Contact Person Name]</td></tr>
+          <tr><td>Phone</td><td>[+X XXX XXX XXXX]</td></tr>
+          <tr><td>Email</td><td>[notify@email.com]</td></tr>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- Shipment details bar -->
+    <div class="shipment-bar">
+      <div class="section-label">Shipment Details</div>
+      <table>
+        <tr>
+          <td>Port of Loading</td>
+          <td>[Mundra Port, Gujarat, India &nbsp;/&nbsp; Chennai Port, Tamil Nadu, India]</td>
+          <td>Incoterms</td>
+          <td>FOB [Port Name]</td>
+        </tr>
+        <tr>
+          <td>Port of Discharge</td>
+          <td>[Destination Port, Country]</td>
+          <td>Payment Terms</td>
+          <td>30% advance T/T; 70% against B/L copy</td>
+        </tr>
+        <tr>
+          <td>Mode of Transport</td>
+          <td>Sea Freight — [20ft / 40ft] Container</td>
+          <td>Est. Lead Time</td>
+          <td>3–4 weeks from order confirmation</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Line items table -->
+    <div class="section-label" style="margin-bottom: 0;">Line Items</div>
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="width:4%">Sr.</th>
+          <th style="width:24%; text-align:left;">Product Description</th>
+          <th style="width:12%">Variety</th>
+          <th style="width:9%">Finish</th>
+          <th style="width:11%">Size</th>
+          <th style="width:11%">Qty (sq ft)</th>
+          <th style="width:13%">Rate (USD/sq ft)</th>
+          <th style="width:16%">Amount (USD)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>[e.g., Verde Guatemala Green Marble Slabs, 2 cm thickness, Grade A]</td>
+          <td>[Forest Green]</td>
+          <td>[Polished]</td>
+          <td>[Up to 260×60 cm]</td>
+          <td>[e.g., 4,500]</td>
+          <td>[e.g., 4.50]</td>
+          <td>[e.g., 20,250.00]</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>[Additional item / second variety if applicable]</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Totals -->
+    <div class="totals-wrap">
+      <table class="totals-table">
+        <tr>
+          <td>Subtotal</td>
+          <td>USD [XX,XXX.00]</td>
+        </tr>
+        <tr>
+          <td>Sea-worthy Packing &amp; Crating</td>
+          <td>USD [X,XXX.00]</td>
+        </tr>
+        <tr>
+          <td>Inland Freight to Port</td>
+          <td>USD [XXX.00]</td>
+        </tr>
+        <tr>
+          <td>Ocean Freight <em style="font-size:7.5pt; color:#aaa;">(if CIF)</em></td>
+          <td>USD [N/A for FOB]</td>
+        </tr>
+        <tr class="total-fob">
+          <td>Total FOB Value</td>
+          <td>USD [XX,XXX.00]</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Amount in words -->
+    <div class="amount-words">
+      Amount in Words: <span>United States Dollars [AMOUNT IN WORDS] Only</span>
+    </div>
+
+    <!-- Bank details + Terms -->
+    <div class="lower-grid">
+
+      <div class="bank-box">
+        <div class="section-label">Bank Details for Wire Transfer</div>
+        <table>
+          <tr><td>Beneficiary Name</td><td>[ACCOUNT HOLDER NAME]</td></tr>
+          <tr><td>Bank Name</td><td>[BANK NAME]</td></tr>
+          <tr><td>Branch Address</td><td>[BRANCH ADDRESS]</td></tr>
+          <tr><td>Account Number</td><td>[ACCOUNT NUMBER]</td></tr>
+          <tr><td>IFSC Code</td><td>[IFSC CODE]</td></tr>
+          <tr><td>SWIFT / BIC Code</td><td>[SWIFT CODE]</td></tr>
+          <tr><td>Currency</td><td>USD</td></tr>
+          <tr><td>Correspondent Bank</td><td>[CORRESPONDENT BANK, if applicable]</td></tr>
+        </table>
+      </div>
+
+      <div class="terms-box">
+        <div class="section-label">Terms &amp; Conditions</div>
+        <ul>
+          <li>This proforma invoice is valid for <strong>30 days</strong> from the date of issue.</li>
+          <li>Order confirmed upon receipt of <strong>30% advance payment</strong> via T/T wire transfer.</li>
+          <li>Balance of <strong>70%</strong> to be paid against scanned copy of Bill of Lading (B/L).</li>
+          <li>Quality and colour grading as per samples approved by buyer prior to shipment; pre-shipment inspection photos provided before loading.</li>
+          <li>Goods packed in <strong>sea-worthy wooden crates</strong> with foam padding and bubble wrap; delivery 3–4 weeks from order confirmation &amp; advance receipt.</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Signature + Declaration -->
+    <div class="signature-strip">
+      <div class="declaration">
+        We hereby declare that the goods described in this proforma invoice are of Indian origin and that the particulars given are true and correct to the best of our knowledge and belief.
+      </div>
+      <div class="sig-block">
+        <div class="sig-line"></div>
+        <div class="sig-label">Authorized Signatory</div>
+        <div class="sig-sub">Divya Stones, Udaipur</div>
+        <div class="sig-sub" style="margin-top:2px; color:#8B1A1A;">[Name &amp; Designation]</div>
+        <div class="sig-sub" style="margin-top:2px;">Date: ___________________</div>
+      </div>
+    </div>
+
+  </div><!-- /body -->
+
+  <!-- ═══════════════════════ FOOTER ════════════════════════════ -->
+  <div class="footer">
+    <strong>Divya Stones</strong> &nbsp;|&nbsp; Udaipur, Rajasthan 313001, India &nbsp;|&nbsp;
+    +91-94141-67278 &nbsp;|&nbsp; sales@divyastones.com &nbsp;|&nbsp; divyastones.com &nbsp;|&nbsp;
+    IEC: [YOUR IEC]
+  </div>
+
+</div><!-- /page -->
+
+</body>
+</html>
