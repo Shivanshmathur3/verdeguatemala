@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1080px; height: 1080px; overflow: hidden; }
+
+  .card {
+    width: 1080px;
+    height: 1080px;
+    position: relative;
+  }
+
+  .stone-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: brightness(0.85) contrast(1.12);
+  }
+
+  /* Bold diagonal overlay */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(0,0,0,0.05) 0%,
+      rgba(0,0,0,0.08) 35%,
+      rgba(0,0,0,0.65) 65%,
+      rgba(0,0,0,0.92) 100%
+    );
+  }
+
+  /* Top bar */
+  .top-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 48px;
+  }
+
+  .top-label {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.60);
+  }
+
+  .logo-block {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+  .logo-block img { height: 38px; width: auto; filter: brightness(1.2); }
+  .logo-text .company { color: #ffffff; font-size: 17px; font-family: 'Georgia', serif; font-weight: bold; letter-spacing: 0.04em; }
+  .logo-text .tagline { color: rgba(255,255,255,0.60); font-size: 10px; font-family: Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
+
+  /* Center dramatic name */
+  .center-name {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+  }
+  .center-name .name {
+    font-family: 'Georgia', serif;
+    font-size: 100px;
+    font-weight: bold;
+    color: rgba(255,255,255,0.12);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  /* Bottom content */
+  .bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0 60px 52px 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .left-content { max-width: 580px; }
+
+  .variety-label {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 8px;
+  }
+
+  .variety-name {
+    font-family: 'Georgia', serif;
+    font-size: 68px;
+    font-weight: bold;
+    color: #ffffff;
+    line-height: 1.0;
+    margin-bottom: 16px;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.4);
+  }
+
+  .divider { width: 52px; height: 3px; background: #27ae60; margin-bottom: 20px; border-radius: 2px; }
+
+  .description {
+    font-family: Arial, sans-serif;
+    font-size: 19px;
+    color: rgba(255,255,255,0.85);
+    line-height: 1.55;
+  }
+
+  .right-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+    min-width: 200px;
+  }
+
+  .tag {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    padding: 7px 16px;
+    border-radius: 20px;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  .tag.highlight {
+    background: rgba(39,174,96,0.22);
+    border-color: rgba(39,174,96,0.50);
+    color: #90EE90;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <img class="stone-image" src="../../images/forestgreen.jpg" alt="Forest Green Marble">
+  <div class="overlay"></div>
+
+  <div class="top-bar">
+    <span class="top-label">Verde Guatemala · Direct from Quarry</span>
+    <div class="logo-block">
+      <img src="../../images/logo.jpg" alt="Divya Stones">
+      <div class="logo-text">
+        <div class="company">Divya Stones</div>
+        <div class="tagline">Udaipur · Est. 1999</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="center-name">
+    <div class="name">Forest</div>
+  </div>
+
+  <div class="bottom">
+    <div class="left-content">
+      <div class="variety-label">Verde Guatemala — Variety No. 3</div>
+      <div class="variety-name">Forest Green</div>
+      <div class="divider"></div>
+      <div class="description">
+        Bold dark veining cuts through rich green — high contrast that commands
+        attention in hospitality lobbies, retail flagships, and luxury interiors.
+      </div>
+    </div>
+    <div class="right-content">
+      <div class="tag highlight">Direct quarry pricing</div>
+      <div class="tag">FOB Mundra Port</div>
+      <div class="tag">Slabs · Tiles · Custom</div>
+      <div class="tag">Min. 1 container MOQ</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

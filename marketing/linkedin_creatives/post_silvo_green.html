@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1080px; height: 1080px; overflow: hidden; }
+
+  .card { width: 1080px; height: 1080px; position: relative; background: #0a120a; }
+
+  .stone-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: brightness(0.80) contrast(1.08);
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to right,
+      rgba(0,0,0,0.85) 0%,
+      rgba(0,0,0,0.40) 45%,
+      rgba(0,0,0,0.10) 100%
+    );
+  }
+
+  /* Full left panel layout */
+  .left-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 500px;
+    display: flex;
+    flex-direction: column;
+    padding: 52px 48px 52px 60px;
+  }
+
+  .logo-block {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: auto;
+  }
+  .logo-block img { height: 40px; width: auto; filter: brightness(1.2); }
+  .logo-text .company { color: #ffffff; font-size: 17px; font-family: 'Georgia', serif; font-weight: bold; letter-spacing: 0.04em; display: block; }
+  .logo-text .tagline { color: rgba(255,255,255,0.55); font-size: 10px; font-family: Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 2px; display: block; }
+
+  .content-block {
+    margin-bottom: 0;
+  }
+
+  .variety-label {
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.50);
+    margin-bottom: 12px;
+  }
+
+  .variety-name {
+    font-family: 'Georgia', serif;
+    font-size: 70px;
+    font-weight: bold;
+    color: #ffffff;
+    line-height: 1.0;
+    margin-bottom: 22px;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.5);
+  }
+
+  .divider { width: 52px; height: 3px; background: #95a5a6; margin-bottom: 24px; border-radius: 2px; }
+
+  .description {
+    font-family: Arial, sans-serif;
+    font-size: 18px;
+    color: rgba(255,255,255,0.82);
+    line-height: 1.65;
+    margin-bottom: 32px;
+  }
+
+  .spec-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 24px;
+  }
+  .spec-item { display: flex; flex-direction: column; gap: 3px; }
+  .spec-label { font-family: Arial, sans-serif; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.40); }
+  .spec-value { font-family: Arial, sans-serif; font-size: 14px; color: rgba(255,255,255,0.88); font-weight: 600; }
+
+  /* Right side watermark text */
+  .watermark {
+    position: absolute;
+    right: 30px;
+    top: 50%;
+    transform: translateY(-50%) rotate(90deg);
+    font-family: 'Georgia', serif;
+    font-size: 11px;
+    letter-spacing: 0.30em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.18);
+    white-space: nowrap;
+    transform-origin: center;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <img class="stone-image" src="../../images/silvogreen.jpg" alt="Silvo Green Marble">
+  <div class="overlay"></div>
+
+  <div class="left-panel">
+    <div class="logo-block">
+      <img src="../../images/logo.jpg" alt="Divya Stones">
+      <div class="logo-text">
+        <span class="company">Divya Stones</span>
+        <span class="tagline">Udaipur · India · Est. 1999</span>
+      </div>
+    </div>
+
+    <div class="content-block">
+      <div class="variety-label">Verde Guatemala · Variety No. 6</div>
+      <div class="variety-name">Silvo<br>Green</div>
+      <div class="divider"></div>
+      <div class="description">
+        Silver-white veining traces intricate patterns across grey-green —
+        lighter in tone, endlessly complex in detail.
+        The variety interior designers request for bespoke wall cladding
+        and statement bathroom surfaces.
+      </div>
+      <div class="spec-grid">
+        <div class="spec-item"><span class="spec-label">Origin</span><span class="spec-value">Udaipur, India</span></div>
+        <div class="spec-item"><span class="spec-label">Finish</span><span class="spec-value">Polished / Honed</span></div>
+        <div class="spec-item"><span class="spec-label">Export port</span><span class="spec-value">Mundra / Chennai</span></div>
+        <div class="spec-item"><span class="spec-label">Contact</span><span class="spec-value">sales@divyastones.com</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="watermark">Verde Guatemala · Divya Stones · Direct from Quarry</div>
+</div>
+</body>
+</html>

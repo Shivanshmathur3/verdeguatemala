@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1080px; height: 1080px; overflow: hidden; font-family: 'Georgia', serif; }
+
+  .card {
+    width: 1080px;
+    height: 1080px;
+    position: relative;
+    background: #0a1a0a;
+  }
+
+  .stone-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: brightness(0.88) contrast(1.08);
+  }
+
+  /* Dark gradient overlay — bottom 55% */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(0,0,0,0.08) 0%,
+      rgba(0,0,0,0.12) 40%,
+      rgba(0,0,0,0.72) 70%,
+      rgba(0,0,0,0.90) 100%
+    );
+  }
+
+  /* Top-right logo block */
+  .logo-block {
+    position: absolute;
+    top: 40px;
+    right: 44px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0,0,0,0.45);
+    padding: 10px 18px 10px 14px;
+    border-radius: 6px;
+    backdrop-filter: blur(4px);
+  }
+  .logo-block img {
+    height: 44px;
+    width: auto;
+    filter: brightness(1.15);
+  }
+  .logo-text {
+    display: flex;
+    flex-direction: column;
+  }
+  .logo-text .company {
+    color: #ffffff;
+    font-size: 18px;
+    font-family: 'Georgia', serif;
+    font-weight: bold;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+  }
+  .logo-text .tagline {
+    color: rgba(255,255,255,0.72);
+    font-size: 11px;
+    font-family: Arial, sans-serif;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  /* Bottom content */
+  .bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0 60px 56px 60px;
+  }
+
+  .variety-label {
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 10px;
+  }
+
+  .variety-name {
+    font-family: 'Georgia', serif;
+    font-size: 72px;
+    font-weight: bold;
+    color: #ffffff;
+    line-height: 1.0;
+    margin-bottom: 18px;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.5);
+  }
+
+  .divider {
+    width: 64px;
+    height: 3px;
+    background: #4CAF50;
+    margin-bottom: 22px;
+    border-radius: 2px;
+  }
+
+  .description {
+    font-family: Arial, sans-serif;
+    font-size: 20px;
+    color: rgba(255,255,255,0.88);
+    line-height: 1.55;
+    max-width: 700px;
+    margin-bottom: 28px;
+  }
+
+  .specs {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .spec-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .spec-label {
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.50);
+  }
+  .spec-value {
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    color: rgba(255,255,255,0.92);
+    font-weight: 600;
+  }
+
+  /* Top-left corner accent */
+  .corner-accent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 6px;
+    height: 180px;
+    background: linear-gradient(to bottom, #4CAF50, transparent);
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <img class="stone-image" src="../../images/spidergreen.jpg" alt="Spider Green Marble">
+  <div class="overlay"></div>
+  <div class="corner-accent"></div>
+
+  <!-- Logo -->
+  <div class="logo-block">
+    <img src="../../images/logo.jpg" alt="Divya Stones">
+    <div class="logo-text">
+      <span class="company">Divya Stones</span>
+      <span class="tagline">Udaipur · India · Est. 1999</span>
+    </div>
+  </div>
+
+  <!-- Bottom content -->
+  <div class="bottom">
+    <div class="variety-label">Verde Guatemala — Variety No. 1</div>
+    <div class="variety-name">Spider<br>Green</div>
+    <div class="divider"></div>
+    <div class="description">
+      Fine silver veining spreads across deep forest green — no two slabs identical.
+      The variety architects specify when a space needs character, not just colour.
+    </div>
+    <div class="specs">
+      <div class="spec-item">
+        <span class="spec-label">Origin</span>
+        <span class="spec-value">Udaipur, Rajasthan</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-label">Finish</span>
+        <span class="spec-value">Polished / Honed</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-label">Available</span>
+        <span class="spec-value">Slabs · Tiles · Cut-to-size</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-label">Export</span>
+        <span class="spec-value">FOB Mundra Port</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

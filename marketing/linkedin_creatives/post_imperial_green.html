@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1080px; height: 1080px; overflow: hidden; }
+
+  .card { width: 1080px; height: 1080px; position: relative; background: #050f05; }
+
+  .stone-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: brightness(0.80) saturate(1.15);
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(to right, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.20) 55%, rgba(0,0,0,0.05) 100%),
+      linear-gradient(to top, rgba(0,0,0,0.50) 0%, rgba(0,0,0,0) 40%);
+  }
+
+  /* Vertical left panel */
+  .left-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 480px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 60px 50px 60px 60px;
+  }
+
+  .logo-block {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 60px;
+  }
+  .logo-block img { height: 42px; width: auto; filter: brightness(1.15); }
+  .logo-text .company { color: #ffffff; font-size: 18px; font-family: 'Georgia', serif; font-weight: bold; letter-spacing: 0.04em; display: block; }
+  .logo-text .tagline { color: rgba(255,255,255,0.55); font-size: 11px; font-family: Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 2px; display: block; }
+
+  .series {
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 14px;
+  }
+
+  .variety-name {
+    font-family: 'Georgia', serif;
+    font-size: 64px;
+    font-weight: bold;
+    color: #ffffff;
+    line-height: 1.05;
+    margin-bottom: 8px;
+  }
+
+  .variety-sub {
+    font-family: 'Georgia', serif;
+    font-size: 64px;
+    font-weight: bold;
+    color: rgba(255,255,255,0.35);
+    line-height: 1.05;
+    margin-bottom: 28px;
+  }
+
+  .divider {
+    width: 48px;
+    height: 2px;
+    background: linear-gradient(to right, #c0a060, transparent);
+    margin-bottom: 26px;
+  }
+
+  .description {
+    font-family: Arial, sans-serif;
+    font-size: 18px;
+    color: rgba(255,255,255,0.80);
+    line-height: 1.65;
+    margin-bottom: 36px;
+  }
+
+  .premium-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 22px;
+    border: 1px solid rgba(192,160,96,0.55);
+    border-radius: 4px;
+    background: rgba(192,160,96,0.10);
+  }
+  .premium-badge span {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #d4b06a;
+  }
+
+  .bottom-right {
+    position: absolute;
+    bottom: 52px;
+    right: 48px;
+    text-align: right;
+  }
+  .contact-line {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <img class="stone-image" src="../../images/imperialgreen.jpg" alt="Imperial Green Marble">
+  <div class="overlay"></div>
+
+  <div class="left-panel">
+    <div class="logo-block">
+      <img src="../../images/logo.jpg" alt="Divya Stones">
+      <div class="logo-text">
+        <span class="company">Divya Stones</span>
+        <span class="tagline">Udaipur · India · Est. 1999</span>
+      </div>
+    </div>
+
+    <div class="series">Verde Guatemala · Variety No. 4</div>
+    <div class="variety-name">Imperial</div>
+    <div class="variety-sub">Green</div>
+    <div class="divider"></div>
+    <div class="description">
+      Dense, consistent colour with a refined surface texture.
+      The premium-tier choice for five-star hospitality and
+      high-end residential projects demanding understated luxury.
+    </div>
+    <div class="premium-badge">
+      <span>Premium Grade · Direct Export</span>
+    </div>
+  </div>
+
+  <div class="bottom-right">
+    <div class="contact-line">sales@divyastones.com</div>
+    <div class="contact-line">+91-94141-67278</div>
+  </div>
+</div>
+</body>
+</html>
