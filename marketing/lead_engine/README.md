@@ -1,7 +1,13 @@
 # 24/7 Automated Lead Engine — Divya Stones
 
+## Deployment status (2026-07-12)
+| Layer | Status | Notes |
+|-------|--------|-------|
+| **GitHub Actions workflow** (permanent, true 24/7) | ✅ Deployed — `.github/workflows/lead-engine.yml`, daily 06:53 IST + manual Run button | ⚠️ **Needs one step from you:** add repo secret `ANTHROPIC_API_KEY` (GitHub → Settings → Secrets and variables → Actions → New repository secret; key from console.anthropic.com) |
+| **Session cron** (interim runner) | ✅ Active — daily 06:53, job `7eee32c2` | Runs while this Claude session lives (max 7 days); the Actions layer takes over permanently once the secret is added |
+
 ## What this is
-A scheduled Routine (server-side cron, independent of any open session) fires **daily at ~06:53 IST**. Each firing creates a fresh Claude session in this environment that executes `PIPELINE.md`:
+A scheduled run fires **daily at 06:53 IST**, executing `PIPELINE.md`:
 
 ```
 MARKETING agent  →  finds 15 net-new leads/day (10 US, 5 Gulf) with evidence
