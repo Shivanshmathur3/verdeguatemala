@@ -1,0 +1,59 @@
+name: Lead Engine Daily Run
+
+on:
+  schedule:
+    - cron: '23 1 * * *'   # daily 01:23 UTC = 06:53 IST — results ready before the Udaipur workday
+  workflow_dispatch: {}      # manual "Run workflow" button for testing
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lead-engine
+  cancel-in-progress: false
+
+jobs:
+  lead-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout campaign branch
+        uses: actions/checkout@v4
+        with:
+          ref: claude/marketing-email-drafts-cpZlm
+          fetch-depth: 0
+
+      - name: Run lead engine pipeline
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: "--max-turns 150"
+          prompt: |
+            You are the Divya Stones 24/7 Lead Engine daily run — a fully automated
+            scheduled execution. No human is watching; complete the run end-to-end.
+
+            The repo is already checked out on branch claude/marketing-email-drafts-cpZlm.
+            Read marketing/lead_engine/PIPELINE.md and execute it exactly, all 4 stages:
+
+            1. MARKETING stage: research 15 net-new stone importer leads (10 US, 5 Gulf)
+               per the pipeline spec, deduped against marketing/lead_engine/lead_ledger.csv
+               and marketing/scored_master_contacts.csv. Every lead needs a named contact
+               and an evidence URL. Web search is your research tool.
+            2. STRATEGY stage: score and tier each lead per the pipeline rubric; draft
+               Day-1 outreach for Tier 1 leads from the sequence templates in
+               marketing/sequences/. Drafts only — NEVER send anything.
+            3. GOVERNING stage: independent verification pass — recompute parity checks
+               P1-P5 and compliance checks C1-C4 from the pipeline; write
+               governance_report.md ending with RECOMMENDATION: APPROVE or HOLD.
+            4. Append to lead_ledger.csv, add the run row to approval_queue.md, then:
+               git config user.name "Lead Engine Bot" &&
+               git config user.email "actions@github.com" &&
+               git add marketing/lead_engine/ &&
+               git commit -m "Lead engine run_$(date +%F): [N] leads ([M] Tier1) — [APPROVE/HOLD]" &&
+               git push origin claude/marketing-email-drafts-cpZlm
+               (git pull --rebase origin claude/marketing-email-drafts-cpZlm first if the push is rejected)
+
+            Hard rules: never send any email or message of any kind; never contact anyone;
+            output goes only to marketing/lead_engine/pending_approval/ for human review.
+            If any stage fails, write pending_approval/run_[DATE]/FAILED.md with the error,
+            then commit and push whatever exists.
