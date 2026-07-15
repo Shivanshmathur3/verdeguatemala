@@ -1,46 +1,61 @@
 #requires -Version 5.1
 <#
 .SYNOPSIS
-  Business Control Tower — complete removal, v2 (safer, auditable, recoverable).
+  Business Control Tower — complete removal, v2.1 (safe, auditable, recoverable).
 .DESCRIPTION
-  Improvements over v1:
-    - -DryRun switch: full preview of everything that WOULD be removed, removes nothing
-    - Automatic data backup (leads/reports/config zip + Postgres dump + env-var backup) BEFORE anything is destroyed
-    - Shortcut removal restricted to .lnk/.url files (v1 could delete personal files matching 'Parity'/'BCT')
-    - Docker cleanup verifies exit codes, falls back to docker-compose, removes locally-built images
-    - Docker Desktop only shut down if no unrelated containers are running
-    - Env vars backed up before removal (N8N_ENCRYPTION_KEY loss = unrecoverable n8n credentials)
-    - Windows services + RunOnce keys + empty Task Scheduler folders covered
-    - Attribute-clearing + robocopy-mirror fallback for stubborn folder deletion
-    - Auto-elevation, structured phases, final audit with summary table and exit code
+  v2.1 changes after adversarial review (20 findings addressed):
+    - Postgres dump via in-container file + docker cp (PS 5.1 pipeline corrupted UTF-8 dumps)
+    - Backup failures now BLOCK destruction behind a typed confirmation (no timed-sleep "consent")
+    - Stopped/renamed containers found via docker ps -a + compose project labels, started for dump
+    - ALL project Docker volumes tar-exported before teardown (n8n credentials/workflows live there)
+    - Task XMLs / service configs / startup registry values exported BEFORE removal
+    - Env-var backup always taken (even with -SkipBackup), verified, and gates sensitive deletions
+    - Process kill pattern narrowed (bare 'parity' no longer kills unrelated software)
+    - robocopy /XJ + reparse-point pre-removal (junctions no longer follow outside the project)
+    - wsl.exe UTF-16 output handled (WSL distro cleanup was a silent no-op)
+    - Project zip via .NET ZipFile (hidden files included, >2GB supported), robocopy fallback
+    - Elevated window pauses before closing; parent propagates the exit code
+    - v1 coverage restored: bct_* startup items, Pause/Resume .cmd artifacts, Start Menu folders
 .PARAMETER DryRun
   Preview mode. Detects and lists everything, changes nothing. RUN THIS FIRST.
 .PARAMETER SkipBackup
-  Skip the data backup phase (not recommended).
+  Skip the heavy backups (zip/dump/volumes). Env-var backup is still taken. Counts as explicit consent.
 .PARAMETER RemoveSharedTools
   Also remove Docker Desktop, Ollama, Node, Python, Git, VS Code without the second interactive prompt.
 .EXAMPLE
   .\Remove_Business_Control_Tower_v2.ps1 -DryRun      # ALWAYS do this first
-  .\Remove_Business_Control_Tower_v2.ps1              # real removal, with backup
+  .\Remove_Business_Control_Tower_v2.ps1              # real removal, with full backup
 #>
 [CmdletBinding()]
 param(
   [switch]$DryRun,
   [switch]$SkipBackup,
-  [switch]$RemoveSharedTools
+  [switch]$RemoveSharedTools,
+  [switch]$Elevated   # internal: set when the script relaunches itself as admin
 )
 
 $ErrorActionPreference = 'Continue'
-$Root       = 'D:\Business-Control-Tower'
-$Desktop    = [Environment]::GetFolderPath('Desktop')
-$Stamp      = Get-Date -Format 'yyyyMMdd_HHmmss'
-$Log        = Join-Path $Desktop "BCT_Removal_$Stamp.log"
-$BackupDir  = Join-Path $Desktop "BCT_Backup_$Stamp"
-$CurrentPid = $PID
-$NamePat    = '(?i)\bBCT\b|Business Control Tower|Business Tower|Business Rhythm|Business Followup|DivyaStones|Parity'
-$PathPat    = '(?i)D:\\Business-Control-Tower|Business-Control-Tower|bct_|parity|DivyaStones'
-$script:Counts   = @{}
-$script:Warnings = 0
+$Root        = 'D:\Business-Control-Tower'
+$Desktop     = [Environment]::GetFolderPath('Desktop')
+$Stamp       = Get-Date -Format 'yyyyMMdd_HHmmss'
+$Log         = Join-Path $Desktop "BCT_Removal_$Stamp.log"
+$BackupDir   = Join-Path $Desktop "BCT_Backup_$Stamp"
+$CurrentPid  = $PID
+$ComposeFile = Join-Path $Root '10_Docker\docker-compose.yml'
+# compose default project name = lowercased directory containing the compose file
+$ComposeProject = 'business-control-tower'
+if(Test-Path $ComposeFile){ $ComposeProject = (Split-Path (Split-Path $ComposeFile -Parent) -Leaf).ToLower() }
+
+# Detection pattern (tasks/shortcuts/services/audit): word-bounded Parity to avoid 'disparity' etc.
+$NamePat = '(?i)\bBCT\b|bct[_-]|Business Control Tower|Business Tower|Business Rhythm|Business Followup|DivyaStones|\bParity\b'
+$PathPat = '(?i)D:\\Business-Control-Tower|Business-Control-Tower|\bbct_|\bparity\b|DivyaStones'
+# Kill pattern (process termination): strict — must reference the project path/prefix, never bare 'parity'
+$KillPat = '(?i)D:\\Business-Control-Tower|Business-Control-Tower|\bbct_|DivyaStones'
+
+$script:Counts       = @{}
+$script:Warnings     = 0
+$script:BackupIssues = @()
+$script:EnvBackupOk  = $false
 
 function Log([string]$Message,[string]$Level='INFO') {
   $line = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message"
@@ -53,7 +68,6 @@ function Log([string]$Message,[string]$Level='INFO') {
 
 function Count([string]$Category){ if($script:Counts.ContainsKey($Category)){ $script:Counts[$Category]++ } else { $script:Counts[$Category]=1 } }
 
-# Central do-or-preview wrapper: every destructive action goes through this.
 function Act([string]$What,[string]$Category,[scriptblock]$Do) {
   if($DryRun){ Log "WOULD REMOVE: $What" 'DRY'; Count $Category; return $true }
   try { & $Do; Log $What 'OK'; Count $Category; return $true }
@@ -82,15 +96,112 @@ function Get-BctServices {
   }
 }
 
-function Get-BctProcesses {
+# Kill list: strict pattern + known host executables. Audit uses raw scan instead (see Final-Audit).
+function Get-BctKillProcesses {
   Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
     $_.ProcessId -ne $CurrentPid -and
     $_.Name -match '^(powershell|pwsh|cmd|wscript|cscript|python|pythonw|node|codex|streamlit)\.exe$' -and
-    $_.CommandLine -match $PathPat
+    $_.CommandLine -match $KillPat
   }
 }
 
-# ------------------------------------------------------------------- phases --
+function Test-DockerUp {
+  if(!(Get-Command docker -ErrorAction SilentlyContinue)){ return $false }
+  & docker info *> $null
+  return ($LASTEXITCODE -eq 0)
+}
+
+# BCT-owned containers: name pattern OR compose project label OR compose working_dir under $Root
+function Get-BctContainers {
+  & docker ps -a --format '{{.ID}}|{{.Names}}|{{.Image}}|{{.State}}|{{.Label "com.docker.compose.project"}}|{{.Label "com.docker.compose.project.working_dir"}}' 2>$null | ForEach-Object {
+    $p = $_ -split '\|',6
+    if($p.Count -lt 4){ return }
+    $owned = ($p[1] -match '(?i)^bct_|business-control|divyastones') -or
+             ($p.Count -ge 5 -and $p[4] -and $p[4] -eq $ComposeProject) -or
+             ($p.Count -ge 6 -and $p[5] -and $p[5] -like "$Root*")
+    if($owned){ [pscustomobject]@{ Id=$p[0]; Name=$p[1]; Image=$p[2]; State=$p[3] } }
+  }
+}
+
+function Get-BctVolumes {
+  & docker volume ls --format '{{.Name}}|{{.Label "com.docker.compose.project"}}' 2>$null | ForEach-Object {
+    $p = $_ -split '\|',2
+    $owned = ($p[0] -match '(?i)^bct_|business.control|business-control|divyastones') -or
+             ($p.Count -ge 2 -and $p[1] -and $p[1] -eq $ComposeProject)
+    if($owned){ $p[0] }
+  }
+}
+
+# ------------------------------------------------------- phase 1: config backup --
+
+function Export-BctConfigs {
+  Phase 'Config backup (task XMLs, service configs, startup entries, env vars) - BEFORE removal'
+  if($DryRun){ Log "WOULD EXPORT task XMLs, service configs, startup registry values and env vars to $BackupDir" 'DRY'; return }
+  New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
+
+  # Scheduled task definitions -> XML (restorable with Register-ScheduledTask)
+  $taskDir = Join-Path $BackupDir 'tasks'
+  $tasks = @(Get-BctTasks)
+  if($tasks.Count -gt 0){
+    New-Item -ItemType Directory -Path $taskDir -Force | Out-Null
+    foreach($t in $tasks){
+      try {
+        $xml = Export-ScheduledTask -TaskName $t.TaskName -TaskPath $t.TaskPath -ErrorAction Stop
+        $safe = ($t.TaskName -replace '[\\/:*?"<>|]','_')
+        Set-Content -LiteralPath (Join-Path $taskDir "$safe.xml") -Value $xml -Encoding Unicode -ErrorAction Stop
+      } catch { Log "Could not export task $($t.TaskName): $($_.Exception.Message)" 'WARN'; $script:BackupIssues += "task-xml:$($t.TaskName)" }
+    }
+    Log "Exported $($tasks.Count) scheduled task definition(s) to $taskDir" 'OK'
+  }
+
+  # Service configs
+  $svcs = @(Get-BctServices)
+  if($svcs.Count -gt 0){
+    $svcFile = Join-Path $BackupDir 'services_config.txt'
+    $svcs | ForEach-Object { "{0}`t{1}`t{2}`t{3}" -f $_.Name,$_.DisplayName,$_.StartMode,$_.PathName } | Set-Content -LiteralPath $svcFile -Encoding UTF8
+    Log "Exported $($svcs.Count) service config(s) to $svcFile" 'OK'
+  }
+
+  # Startup registry values
+  $regLines = @()
+  foreach($rk in @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Run','HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce','HKLM:\Software\Microsoft\Windows\CurrentVersion\Run','HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Run','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce')){
+    if(!(Test-Path $rk)){ continue }
+    $props = Get-ItemProperty $rk -ErrorAction SilentlyContinue
+    if(-not $props){ continue }
+    foreach($prop in $props.PSObject.Properties){
+      if($prop.Name -match '^PS'){ continue }
+      if(([string]$prop.Value) -match $PathPat){ $regLines += "{0}`t{1}`t{2}" -f $rk,$prop.Name,$prop.Value }
+    }
+  }
+  if($regLines.Count -gt 0){
+    Set-Content -LiteralPath (Join-Path $BackupDir 'startup_registry.txt') -Value $regLines -Encoding UTF8
+    Log "Exported $($regLines.Count) startup registry value(s)" 'OK'
+  }
+
+  # Env vars: ALWAYS backed up (tiny file; N8N_ENCRYPTION_KEY loss is unrecoverable). Verified.
+  $envNames = @('BCT_ROOT','BUSINESS_CONTROL_TOWER','BUSINESS_TOWER_STATE','N8N_ENCRYPTION_KEY','POSTGRES_DB','POSTGRES_USER','POSTGRES_PASSWORD','DASHBOARD_PASSWORD','WHATSAPP_PHONE_NUMBER_ID','WHATSAPP_ACCESS_TOKEN','TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID')
+  $envBackup = Join-Path $BackupDir 'bct_env_vars_SENSITIVE.txt'
+  $lines = @('# BCT environment variable backup - CONTAINS SECRETS. Store safely, then delete.',"# Created $Stamp")
+  foreach($scope in @('User','Machine')){
+    foreach($name in $envNames){
+      $v = [Environment]::GetEnvironmentVariable($name,$scope)
+      if($null -ne $v){ $lines += "$scope`t$name=$v" }
+    }
+  }
+  if($lines.Count -gt 2){
+    try {
+      Set-Content -LiteralPath $envBackup -Value $lines -Encoding UTF8 -ErrorAction Stop
+      $check = @(Get-Content -LiteralPath $envBackup -ErrorAction Stop)
+      if($check.Count -eq $lines.Count){ $script:EnvBackupOk = $true; Log "Environment variables backed up and verified: $envBackup" 'OK' }
+      else { throw "verification mismatch ($($check.Count) vs $($lines.Count) lines)" }
+    } catch {
+      Log "Env-var backup FAILED: $($_.Exception.Message) - sensitive variables will NOT be deleted." 'ERROR'
+      $script:BackupIssues += 'env-vars'
+    }
+  } else { $script:EnvBackupOk = $true; Log 'No BCT environment variables found to back up.' }
+}
+
+# ------------------------------------------------------------------- removal --
 
 function Remove-BctTasks {
   Phase 'Scheduled tasks'
@@ -105,7 +216,6 @@ function Remove-BctTasks {
       Unregister-ScheduledTask -TaskName $t.TaskName -TaskPath $t.TaskPath -Confirm:$false -ErrorAction Stop
     } | Out-Null
   }
-  # Clean now-empty task folders v1 left behind
   if(-not $DryRun -and $folders.Count -gt 0){
     try {
       $svc = New-Object -ComObject 'Schedule.Service'; $svc.Connect()
@@ -125,7 +235,7 @@ function Remove-BctTasks {
 }
 
 function Remove-BctServices {
-  Phase 'Windows services (missed by v1)'
+  Phase 'Windows services'
   $svcs = @(Get-BctServices)
   if($svcs.Count -eq 0){ Log 'No matching services found.'; return }
   foreach($s in $svcs){
@@ -139,15 +249,7 @@ function Remove-BctServices {
 
 function Remove-StartupEntries {
   Phase 'Startup entries (Run + RunOnce + Startup folders)'
-  $runKeys = @(
-    'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run',
-    'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce',
-    'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run',
-    'HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce',
-    'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Run',
-    'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce'
-  )
-  foreach($rk in $runKeys){
+  foreach($rk in @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Run','HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce','HKLM:\Software\Microsoft\Windows\CurrentVersion\Run','HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Run','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce')){
     if(!(Test-Path $rk)){ continue }
     $props = Get-ItemProperty $rk -ErrorAction SilentlyContinue
     if(-not $props){ continue }
@@ -160,10 +262,11 @@ function Remove-StartupEntries {
       }
     }
   }
-  $startupFolders = @([Environment]::GetFolderPath('Startup'), "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup")
-  foreach($folder in $startupFolders){
+  foreach($folder in @([Environment]::GetFolderPath('Startup'), "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup")){
     if(!(Test-Path $folder)){ continue }
-    Get-ChildItem $folder -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -match $NamePat } | ForEach-Object {
+    Get-ChildItem $folder -Force -ErrorAction SilentlyContinue | Where-Object {
+      ($_.Name -match $NamePat) -or ($_.Name -match $PathPat)
+    } | ForEach-Object {
       $item = $_
       Act "Startup item $($item.FullName)" 'Startup' { Remove-Item $item.FullName -Recurse -Force -ErrorAction Stop } | Out-Null
     }
@@ -171,90 +274,142 @@ function Remove-StartupEntries {
 }
 
 function Stop-BctProcesses {
-  Phase 'Running processes'
-  $procs = @(Get-BctProcesses)
+  Phase 'Running processes (strict pattern - project path required)'
+  $procs = @(Get-BctKillProcesses)
   if($procs.Count -eq 0){ Log 'No matching processes running.'; return }
   foreach($p in $procs){
     Act "Process $($p.Name) PID $($p.ProcessId)" 'Processes' { Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop } | Out-Null
   }
 }
 
+# ------------------------------------------------------ phase 6: data backup --
+
 function Backup-BctData {
-  Phase 'Backup (BEFORE anything is destroyed)'
-  if($SkipBackup){ Log 'Backup skipped by -SkipBackup.' 'WARN'; return }
-  if($DryRun){ Log "WOULD CREATE backup folder $BackupDir with: project-data zip, Postgres dump (if running), env-var backup" 'DRY'; return }
+  Phase 'Data backup (database dump, volume exports, project zip) - BEFORE destruction'
+  if($SkipBackup){ Log 'Heavy backups skipped by -SkipBackup (explicit consent). Env vars were still backed up.' 'WARN'; return }
+  if($DryRun){ Log "WOULD CREATE in ${BackupDir}: Postgres dump, tar export of every project Docker volume, full project zip" 'DRY'; return }
   New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
 
-  # 1. Postgres dump while the container is still alive (v1 destroyed volumes with zero backup)
-  if(Get-Command docker -ErrorAction SilentlyContinue){
-    & docker info *> $null
-    if($LASTEXITCODE -eq 0){
-      $pgc = & docker ps --format '{{.ID}}|{{.Names}}' 2>$null | ForEach-Object {
-        $p = $_ -split '\|',2
-        if($p.Count -eq 2 -and $p[1] -match '(?i)(bct|business|divya).*(postgres|db)|postgres.*(bct|divya)'){ $p[0] }
-      } | Select-Object -First 1
-      if($pgc){
-        $pgUser = [Environment]::GetEnvironmentVariable('POSTGRES_USER','User')
-        if(-not $pgUser){ $pgUser = [Environment]::GetEnvironmentVariable('POSTGRES_USER','Machine') }
-        if(-not $pgUser){ $pgUser = 'postgres' }
-        $dump = Join-Path $BackupDir 'bct_postgres_dumpall.sql'
-        & docker exec $pgc pg_dumpall -U $pgUser 2>$null | Out-File -LiteralPath $dump -Encoding UTF8
-        if($LASTEXITCODE -eq 0 -and (Get-Item $dump -ErrorAction SilentlyContinue).Length -gt 0){
-          Log "Postgres database dumped to $dump" 'OK'
-        } else {
-          Remove-Item $dump -Force -ErrorAction SilentlyContinue
-          Log 'Postgres dump failed - database contents will be LOST when volumes are removed. Ctrl+C now if you need them.' 'WARN'
-          Start-Sleep 8
+  # --- Docker-side backups ---
+  if(Test-DockerUp){
+    $containers = @(Get-BctContainers)
+
+    # 1. Postgres dump - find EVERY postgres container (running or stopped), start if needed
+    $pgs = @($containers | Where-Object { $_.Image -match '(?i)postgres' -or $_.Name -match '(?i)postgres|(^|[_-])db([_-]|$)' })
+    if($pgs.Count -eq 0){
+      if(Test-Path $ComposeFile){
+        Log 'Compose stack exists but NO postgres container was found - if the database matters, abort now.' 'WARN'
+        $script:BackupIssues += 'no-postgres-dump'
+      } else { Log 'No postgres container found; no database dump taken.' }
+    }
+    foreach($pg in $pgs){
+      $started = $false
+      if($pg.State -ne 'running'){
+        & docker start $pg.Id *> $null
+        if($LASTEXITCODE -eq 0){ $started = $true; Start-Sleep 8; Log "Started stopped container $($pg.Name) for backup." }
+        else { Log "Could not start $($pg.Name) to dump it." 'WARN'; $script:BackupIssues += "pg-start:$($pg.Name)"; continue }
+      }
+      # user: Windows env var -> project .env file -> default
+      $pgUser = [Environment]::GetEnvironmentVariable('POSTGRES_USER','User')
+      if(-not $pgUser){ $pgUser = [Environment]::GetEnvironmentVariable('POSTGRES_USER','Machine') }
+      if(-not $pgUser){
+        $envFile = Join-Path (Split-Path $ComposeFile -Parent) '.env'
+        if(Test-Path $envFile){
+          $m = Select-String -LiteralPath $envFile -Pattern '^\s*POSTGRES_USER=(.+)$' | Select-Object -First 1
+          if($m){ $pgUser = $m.Matches[0].Groups[1].Value.Trim() }
         }
-      } else { Log 'No BCT postgres container running; no database dump taken.' }
-    } else { Log 'Docker engine not running; no database dump possible. Volume data will be lost.' 'WARN' }
+      }
+      if(-not $pgUser){ $pgUser = 'postgres' }
+      $dump = Join-Path $BackupDir ("postgres_dumpall_{0}.sql" -f ($pg.Name -replace '[\\/:*?"<>|]','_'))
+      # dump INSIDE the container, then docker cp - avoids PS 5.1 pipeline re-encoding corruption
+      & docker exec $pg.Id sh -c "pg_dumpall -U $pgUser -f /tmp/bct_dumpall.sql" 2>$null
+      $execCode = $LASTEXITCODE
+      if($execCode -eq 0){
+        & docker cp "$($pg.Id):/tmp/bct_dumpall.sql" $dump 2>$null
+        if($LASTEXITCODE -eq 0 -and (Test-Path $dump) -and (Get-Item $dump).Length -gt 100){
+          Log "Postgres dump OK: $dump ($([math]::Round((Get-Item $dump).Length/1KB)) KB)" 'OK'
+          & docker exec $pg.Id rm -f /tmp/bct_dumpall.sql 2>$null
+        } else { Log "docker cp of dump failed for $($pg.Name)." 'ERROR'; $script:BackupIssues += "pg-cp:$($pg.Name)" }
+      } else {
+        Log "pg_dumpall failed in $($pg.Name) (user '$pgUser', exit $execCode)." 'ERROR'
+        $script:BackupIssues += "pg-dump:$($pg.Name)"
+      }
+      if($started){ & docker stop $pg.Id *> $null }
+    }
+
+    # 2. Stop remaining running BCT containers gracefully, then tar-export EVERY project volume
+    foreach($c in ($containers | Where-Object { $_.State -eq 'running' })){
+      & docker stop $c.Id *> $null
+      if($LASTEXITCODE -eq 0){ Log "Stopped container $($c.Name) for consistent volume export." }
+    }
+    $vols = @(Get-BctVolumes)
+    foreach($v in $vols){
+      $tgz = "volume_{0}.tgz" -f ($v -replace '[\\/:*?"<>|]','_')
+      & docker run --rm -v "${v}:/v:ro" -v "${BackupDir}:/b" alpine tar czf "/b/$tgz" -C /v . 2>$null
+      if($LASTEXITCODE -eq 0 -and (Test-Path (Join-Path $BackupDir $tgz))){
+        Log "Volume exported: $v -> $tgz" 'OK'
+      } else {
+        Log "Volume export FAILED: $v (offline? alpine image unavailable?)" 'ERROR'
+        $script:BackupIssues += "volume:$v"
+      }
+    }
+    if($vols.Count -eq 0 -and (Test-Path $ComposeFile)){ Log 'No project volumes matched - check names manually with: docker volume ls' 'WARN' }
+  } else {
+    if(Test-Path $ComposeFile){
+      Log 'Docker engine NOT running but a compose stack exists - database/volume contents CANNOT be backed up and WILL BE LOST if volumes are removed.' 'ERROR'
+      $script:BackupIssues += 'docker-down-no-dump'
+    }
   }
 
-  # 2. Project folder zip (leads, reports, config, .env files)
+  # --- Project folder zip: .NET ZipFile (hidden files included, >2GB entries OK) ---
   if(Test-Path $Root){
-    $sizeMB = [math]::Round(((Get-ChildItem $Root -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum)/1MB)
     $zip = Join-Path $BackupDir 'bct_project_files.zip'
-    if($sizeMB -le 1500){
-      try { Compress-Archive -Path (Join-Path $Root '*') -DestinationPath $zip -Force -ErrorAction Stop; Log "Project folder ($sizeMB MB) zipped to $zip" 'OK' }
-      catch { Log ("Full zip failed ({0}); falling back to data-only zip." -f $_.Exception.Message) 'WARN'; $sizeMB = 999999 }
+    $zipOk = $false
+    try {
+      Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction Stop
+      [System.IO.Compression.ZipFile]::CreateFromDirectory($Root, $zip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+      $zipOk = $true
+      Log "Project folder zipped: $zip ($([math]::Round((Get-Item $zip).Length/1MB)) MB)" 'OK'
+    } catch {
+      Log "Zip failed ($($_.Exception.Message)) - falling back to robocopy file copy." 'WARN'
+      Remove-Item $zip -Force -ErrorAction SilentlyContinue
     }
-    if($sizeMB -gt 1500){
-      $dataDirs = Get-ChildItem $Root -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '(?i)data|report|lead|export|config|output|csv|db' }
-      $dataFiles = Get-ChildItem $Root -File -Force -ErrorAction SilentlyContinue | Where-Object { $_.Extension -match '(?i)\.(env|csv|db|sqlite|json|md)$' }
-      $targets = @($dataDirs.FullName) + @($dataFiles.FullName) | Where-Object { $_ }
-      if($targets.Count -gt 0){
-        try { Compress-Archive -Path $targets -DestinationPath $zip -Force -ErrorAction Stop; Log "Data-only backup zipped to $zip (full folder was $sizeMB MB - too large)" 'OK' }
-        catch { Log 'Data zip also failed. Copy anything you need out of the folder manually before continuing. Ctrl+C now to abort.' 'ERROR'; Start-Sleep 10 }
-      } else { Log 'No obvious data folders found to back up.' 'WARN' }
+    if(-not $zipOk){
+      $copyDir = Join-Path $BackupDir 'project_files'
+      & robocopy $Root $copyDir /E /R:1 /W:1 /XJ /XD node_modules .venv venv __pycache__ .git *> $null
+      # robocopy exit codes 0-7 = success variants; >=8 = failure
+      if($LASTEXITCODE -lt 8){ Log "Project files copied to $copyDir (junk dirs excluded, junctions not followed)" 'OK' }
+      else { Log 'Project file backup FAILED via both zip and robocopy.' 'ERROR'; $script:BackupIssues += 'project-files' }
     }
   } else { Log "Project folder $Root not found; nothing to zip." }
+}
 
-  # 3. Environment variable backup (N8N_ENCRYPTION_KEY loss = unrecoverable credentials)
-  $envNames = @('BCT_ROOT','BUSINESS_CONTROL_TOWER','BUSINESS_TOWER_STATE','N8N_ENCRYPTION_KEY','POSTGRES_DB','POSTGRES_USER','POSTGRES_PASSWORD','DASHBOARD_PASSWORD','WHATSAPP_PHONE_NUMBER_ID','WHATSAPP_ACCESS_TOKEN','TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID')
-  $envBackup = Join-Path $BackupDir 'bct_env_vars_SENSITIVE.txt'
-  $lines = @('# BCT environment variable backup - CONTAINS SECRETS. Store safely, then delete.',"# Created $Stamp")
-  foreach($scope in @('User','Machine')){
-    foreach($name in $envNames){
-      $v = [Environment]::GetEnvironmentVariable($name,$scope)
-      if($null -ne $v){ $lines += "$scope`t$name=$v" }
-    }
+# Backup gate: destruction only proceeds past failures with explicit typed consent.
+function Assert-BackupGate([string]$About){
+  if($DryRun -or $SkipBackup){ return }
+  if($script:BackupIssues.Count -eq 0){ return }
+  Log ("BACKUP INCOMPLETE ({0}) - consent required to {1}." -f ($script:BackupIssues -join ', '), $About) 'ERROR'
+  Write-Host ''
+  Write-Host "One or more backups FAILED: $($script:BackupIssues -join ', ')" -ForegroundColor Red
+  Write-Host "Continuing will $About with NO complete backup. Data loss may be permanent." -ForegroundColor Red
+  $c = Read-Host 'Type CONTINUE WITHOUT BACKUP to proceed anyway (anything else aborts safely)'
+  if($c -cne 'CONTINUE WITHOUT BACKUP'){
+    Log 'Aborted at backup gate. Nothing further was removed. Fix the backup issue and rerun.' 'ERROR'
+    if($Elevated){ Read-Host 'Press Enter to close this window' | Out-Null }
+    exit 3
   }
-  if($lines.Count -gt 2){
-    Set-Content -LiteralPath $envBackup -Value $lines -Encoding UTF8
-    Log "Environment variables backed up to $envBackup (contains secrets - move it somewhere safe)" 'OK'
-  } else { Log 'No BCT environment variables found to back up.' }
+  Log 'User explicitly consented to continue without complete backup.' 'WARN'
+  $script:BackupIssues = @()   # consent given once covers the rest of the run
 }
 
 function Remove-BctDockerAssets {
   Phase 'Docker assets (compose stack, containers, volumes, networks, local images)'
   if(!(Get-Command docker -ErrorAction SilentlyContinue)){ Log 'Docker CLI not found; skipping.' 'WARN'; return }
-  & docker info *> $null
-  if($LASTEXITCODE -ne 0){ Log 'Docker engine not running; live Docker cleanup skipped. Volumes may survive - rerun with Docker started if you want them gone.' 'WARN'; return }
+  if(!(Test-DockerUp)){ Log 'Docker engine not running; live Docker cleanup skipped. Rerun with Docker started to remove volumes.' 'WARN'; return }
 
-  $composeFile = Join-Path $Root '10_Docker\docker-compose.yml'
-  if(Test-Path $composeFile){
+  if(Test-Path $ComposeFile){
     Act 'Compose stack (down --volumes --rmi local)' 'Docker' {
-      Push-Location (Split-Path $composeFile -Parent)
+      Push-Location (Split-Path $ComposeFile -Parent)
       try {
         & docker compose version *> $null
         if($LASTEXITCODE -eq 0){ & docker compose down --remove-orphans --volumes --rmi local }
@@ -265,20 +420,15 @@ function Remove-BctDockerAssets {
     } | Out-Null
   }
 
-  & docker ps -a --format '{{.ID}}|{{.Names}}' 2>$null | ForEach-Object {
-    $p = $_ -split '\|',2
-    if($p.Count -eq 2 -and $p[1] -match '(?i)^bct_|business-control|divyastones'){
-      $id=$p[0]; $name=$p[1]
-      Act "Container $name" 'Docker' { & docker rm -f $id *> $null; if($LASTEXITCODE -ne 0){ throw "docker rm exited $LASTEXITCODE" } } | Out-Null
-    }
+  foreach($c in @(Get-BctContainers)){
+    Act "Container $($c.Name)" 'Docker' { & docker rm -f $c.Id *> $null; if($LASTEXITCODE -ne 0){ throw "docker rm exited $LASTEXITCODE" } } | Out-Null
   }
-  & docker volume ls --format '{{.Name}}' 2>$null | Where-Object { $_ -match '(?i)bct_|business.control|business-control|divyastones' } | ForEach-Object {
-    $v=$_
+  foreach($v in @(Get-BctVolumes)){
     Act "Volume $v" 'Docker' { & docker volume rm -f $v *> $null; if($LASTEXITCODE -ne 0){ throw "volume rm exited $LASTEXITCODE" } } | Out-Null
   }
-  & docker network ls --format '{{.ID}}|{{.Name}}' 2>$null | ForEach-Object {
-    $p = $_ -split '\|',2
-    if($p.Count -eq 2 -and $p[1] -match '(?i)bct_|business.control|business-control|divyastones'){
+  & docker network ls --format '{{.ID}}|{{.Name}}|{{.Label "com.docker.compose.project"}}' 2>$null | ForEach-Object {
+    $p = $_ -split '\|',3
+    if($p.Count -ge 2 -and (($p[1] -match '(?i)bct_|business.control|business-control|divyastones') -or ($p.Count -ge 3 -and $p[2] -eq $ComposeProject))){
       $id=$p[0]; $name=$p[1]
       Act "Network $name" 'Docker' { & docker network rm $id *> $null; if($LASTEXITCODE -ne 0){ throw "network rm exited $LASTEXITCODE" } } | Out-Null
     }
@@ -294,10 +444,28 @@ function Remove-BctDockerAssets {
 
 function Stop-DockerDesktop {
   Phase 'Docker Desktop shutdown'
-  $others = @(& docker ps --format '{{.Names}}' 2>$null | Where-Object { $_ -and $_ -notmatch '(?i)^bct_|business-control|divyastones' })
-  if($others.Count -gt 0 -and -not $RemoveSharedTools){
-    Log ("Docker Desktop left RUNNING - other active containers depend on it: {0}" -f ($others -join ', ')) 'WARN'
+  if(!(Get-Command docker -ErrorAction SilentlyContinue)){ Log 'Docker CLI not present; nothing to shut down.'; return }
+  $psOutput = & docker ps --format '{{.Names}}|{{.Label "com.docker.compose.project"}}' 2>$null
+  $psFailed = ($LASTEXITCODE -ne 0)
+  $others = @()
+  if(-not $psFailed -and $psOutput){
+    $others = @($psOutput | ForEach-Object {
+      $p = $_ -split '\|',2
+      $bct = ($p[0] -match '(?i)^bct_|business-control|divyastones') -or ($p.Count -ge 2 -and $p[1] -eq $ComposeProject)
+      if(-not $bct){ $p[0] }
+    })
+  }
+  if($psFailed -and -not $RemoveSharedTools){
+    Log 'Could not query docker ps - failing CLOSED: Docker Desktop left running (unknown container state).' 'WARN'
     return
+  }
+  if($others.Count -gt 0){
+    if(-not $RemoveSharedTools){
+      Log ("Docker Desktop left RUNNING - other active containers depend on it: {0}" -f ($others -join ', ')) 'WARN'
+      return
+    }
+    Log ("Stopping non-BCT containers gracefully before shutdown: {0}" -f ($others -join ', ')) 'WARN'
+    if(-not $DryRun){ foreach($o in $others){ & docker stop $o *> $null } }
   }
   if($DryRun){ Log 'WOULD SHUT DOWN Docker Desktop' 'DRY'; return }
   $cli = "$env:ProgramFiles\Docker\Docker\DockerCli.exe"
@@ -308,19 +476,21 @@ function Stop-DockerDesktop {
 }
 
 function Remove-Shortcuts {
-  Phase 'Shortcuts (.lnk/.url ONLY - v1 could delete personal files)'
+  Phase 'Shortcuts and control scripts'
   $places = @(
     [Environment]::GetFolderPath('Desktop'),
     "$env:PUBLIC\Desktop",
     "$env:APPDATA\Microsoft\Windows\Start Menu\Programs",
     "$env:ProgramData\Microsoft\Windows\Start Menu\Programs"
   )
+  $startMenus = @("$env:APPDATA\Microsoft\Windows\Start Menu\Programs","$env:ProgramData\Microsoft\Windows\Start Menu\Programs")
   $wsh = $null
   try { $wsh = New-Object -ComObject WScript.Shell } catch {}
+
   foreach($place in $places){
     if(!(Test-Path $place)){ continue }
     Get-ChildItem $place -Recurse -Force -ErrorAction SilentlyContinue |
-      Where-Object { -not $_.PSIsContainer -and $_.Extension -match '^\.(lnk|url)$' } |
+      Where-Object { -not $_.PSIsContainer -and $_.Extension -match '^\.(lnk|url|bat|cmd|ps1|vbs)$' } |
       ForEach-Object {
         $sc = $_; $hit = $false
         if($sc.Name -match $NamePat){ $hit = $true }
@@ -330,7 +500,19 @@ function Remove-Shortcuts {
             if("$($t.TargetPath) $($t.Arguments) $($t.WorkingDirectory)" -match $PathPat){ $hit = $true }
           } catch {}
         }
-        if($hit){ Act "Shortcut $($sc.FullName)" 'Shortcuts' { Remove-Item $sc.FullName -Force -ErrorAction Stop } | Out-Null }
+        elseif($sc.Extension -match '^\.(bat|cmd|ps1|vbs)$' -and $sc.Length -lt 64KB){
+          try { if((Get-Content -LiteralPath $sc.FullName -TotalCount 30 -ErrorAction Stop) -join ' ' -match $PathPat){ $hit = $true } } catch {}
+        }
+        if($hit){ Act "Shortcut/script $($sc.FullName)" 'Shortcuts' { Remove-Item $sc.FullName -Force -ErrorAction Stop } | Out-Null }
+      }
+  }
+  # Start Menu FOLDERS named after the tower (never touches Desktop folders)
+  foreach($menu in $startMenus){
+    if(!(Test-Path $menu)){ continue }
+    Get-ChildItem $menu -Recurse -Force -Directory -ErrorAction SilentlyContinue |
+      Where-Object { $_.Name -match $NamePat } | ForEach-Object {
+        $d = $_
+        Act "Start Menu folder $($d.FullName)" 'Shortcuts' { Remove-Item $d.FullName -Recurse -Force -ErrorAction Stop } | Out-Null
       }
   }
 }
@@ -338,7 +520,7 @@ function Remove-Shortcuts {
 function Remove-FirewallRules {
   Phase 'Firewall rules'
   Get-NetFirewallRule -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -match '(?i)BCT|Business Control Tower|Business Tower|DivyaStones|n8n.*5678|Streamlit.*8501'
+    $_.DisplayName -match '(?i)\bBCT\b|Business Control Tower|Business Tower|DivyaStones|n8n.*5678|Streamlit.*8501'
   } | ForEach-Object {
     $r = $_
     Act "Firewall rule $($r.DisplayName)" 'Firewall' { Remove-NetFirewallRule -Name $r.Name -ErrorAction Stop } | Out-Null
@@ -346,17 +528,28 @@ function Remove-FirewallRules {
 }
 
 function Remove-BctEnvVars {
-  Phase 'Environment variables (backed up in the Backup phase)'
-  $names = @('BCT_ROOT','BUSINESS_CONTROL_TOWER','BUSINESS_TOWER_STATE','N8N_ENCRYPTION_KEY','POSTGRES_DB','POSTGRES_USER','POSTGRES_PASSWORD','DASHBOARD_PASSWORD','WHATSAPP_PHONE_NUMBER_ID','WHATSAPP_ACCESS_TOKEN','TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID')
+  Phase 'Environment variables'
+  # BCT-specific names are always safe to remove; sensitive/generic names require a verified backup.
+  $bctOnly    = @('BCT_ROOT','BUSINESS_CONTROL_TOWER','BUSINESS_TOWER_STATE')
+  $sensitive  = @('N8N_ENCRYPTION_KEY','POSTGRES_DB','POSTGRES_USER','POSTGRES_PASSWORD','DASHBOARD_PASSWORD','WHATSAPP_PHONE_NUMBER_ID','WHATSAPP_ACCESS_TOKEN','TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID')
   foreach($scope in @('User','Machine')){
-    foreach($name in $names){
+    foreach($name in $bctOnly){
       if($null -ne [Environment]::GetEnvironmentVariable($name,$scope)){
         Act "$scope environment variable $name" 'EnvVars' { [Environment]::SetEnvironmentVariable($name,$null,$scope) } | Out-Null
       }
     }
+    foreach($name in $sensitive){
+      if($null -ne [Environment]::GetEnvironmentVariable($name,$scope)){
+        if($script:EnvBackupOk -or $DryRun){
+          Act "$scope environment variable $name" 'EnvVars' { [Environment]::SetEnvironmentVariable($name,$null,$scope) } | Out-Null
+        } else {
+          Log "KEPT $scope $name - env-var backup was not verified (delete manually after backing it up)." 'WARN'
+        }
+      }
+    }
   }
   Log 'OPENAI_API_KEY deliberately left untouched (other programs may use it).'
-  Log 'NOTE: POSTGRES_* / DASHBOARD_PASSWORD are generic names - if another app used them, restore from the backup file.' 'WARN'
+  Log 'NOTE: POSTGRES_*/DASHBOARD_PASSWORD are generic names - if another app used them, restore from the backup file.' 'WARN'
 }
 
 function Restore-PowerPlan {
@@ -372,10 +565,20 @@ function Remove-ProjectFolder {
   if(!(Test-Path $Root)){ Log 'Project folder already absent.'; return }
   if($DryRun){ Log "WOULD DELETE $Root (after backup)" 'DRY'; Count 'Folder'; return }
 
-  # Don't hold a lock on the folder we're deleting
   if((Get-Location).Path -like "$Root*"){ Set-Location $env:SystemDrive\ }
 
-  # Clear read-only/system/hidden attributes - the most common Remove-Item failure
+  # Remove reparse points FIRST so nothing can follow a junction out of the project tree
+  Get-ChildItem $Root -Recurse -Force -ErrorAction SilentlyContinue |
+    Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint } |
+    Sort-Object { $_.FullName.Length } -Descending | ForEach-Object {
+      $rp = $_
+      try {
+        if($rp.PSIsContainer){ & cmd.exe /c "rmdir `"$($rp.FullName)`"" *> $null }
+        else { Remove-Item -LiteralPath $rp.FullName -Force -ErrorAction Stop }
+        Log "Removed junction/symlink (link only, target untouched): $($rp.FullName)" 'OK'
+      } catch { Log "Could not remove reparse point $($rp.FullName)" 'WARN' }
+    }
+
   & cmd.exe /c "attrib -r -s -h `"$Root\*`" /s /d" *> $null
 
   try { Remove-Item $Root -Recurse -Force -ErrorAction Stop; Log "Deleted $Root" 'OK'; Count 'Folder'; return } catch {}
@@ -383,10 +586,9 @@ function Remove-ProjectFolder {
   & cmd.exe /c "rmdir /s /q `"$Root`"" *> $null
   if(!(Test-Path $Root)){ Log "Deleted $Root (rmdir fallback)" 'OK'; Count 'Folder'; return }
 
-  # Robocopy mirror-empty: handles long paths and stubborn ACLs
   $empty = Join-Path $env:TEMP "bct_empty_$Stamp"
   New-Item -ItemType Directory -Path $empty -Force | Out-Null
-  & robocopy $empty $Root /MIR /R:1 /W:1 *> $null
+  & robocopy $empty $Root /MIR /XJ /R:1 /W:1 *> $null
   Remove-Item $Root  -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item $empty -Recurse -Force -ErrorAction SilentlyContinue
   if(Test-Path $Root){ Log "Could not completely delete $Root - a process may still lock it. Reboot, then delete manually." 'ERROR' }
@@ -426,7 +628,8 @@ function Remove-SharedTools {
   }
 
   if(Get-Command wsl.exe -ErrorAction SilentlyContinue){
-    $distros = (& wsl.exe --list --quiet 2>$null) | ForEach-Object { $_.Trim([char]0).Trim() }
+    # wsl.exe emits UTF-16LE; strip embedded NULs or names never match on PS 5.1
+    $distros = (& wsl.exe --list --quiet 2>$null) | ForEach-Object { ($_ -replace "`0",'').Trim() } | Where-Object { $_ }
     foreach($d in $distros){
       if($d -in @('docker-desktop','docker-desktop-data')){
         Act "Unregistered Docker WSL distribution $d" 'SharedTools' { & wsl.exe --unregister $d; if($LASTEXITCODE -ne 0){ throw "wsl --unregister exited $LASTEXITCODE" } } | Out-Null
@@ -446,24 +649,25 @@ function Final-Audit {
   $svcs = @(Get-BctServices)
   if($svcs.Count -eq 0){ Log 'Audit: no BCT services remain.' 'OK' } else { $problems++; $svcs | ForEach-Object { Log "Audit: service remains $($_.Name)" 'WARN' } }
 
-  $procs = @(Get-BctProcesses)
+  # Raw scan - no executable whitelist (catches BCT code hosted by ANY binary)
+  $procs = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+    $_.ProcessId -ne $CurrentPid -and $_.CommandLine -match $KillPat
+  })
   if($procs.Count -eq 0){ Log 'Audit: no BCT processes remain.' 'OK' } else { $problems++; $procs | ForEach-Object { Log "Audit: process remains $($_.Name) PID $($_.ProcessId)" 'WARN' } }
 
   if(Test-Path $Root){ $problems++; Log "Audit: project folder still exists: $Root" 'WARN' } else { Log 'Audit: project folder removed.' 'OK' }
 
-  if(Get-Command docker -ErrorAction SilentlyContinue){
-    & docker info *> $null
-    if($LASTEXITCODE -eq 0){
-      $left = @(& docker ps -a --format '{{.Names}}' 2>$null | Where-Object { $_ -match '(?i)^bct_|business-control|divyastones' })
-      if($left.Count -eq 0){ Log 'Audit: no BCT docker containers remain.' 'OK' } else { $problems++; Log ("Audit: containers remain: {0}" -f ($left -join ', ')) 'WARN' }
-    }
+  if(Test-DockerUp){
+    $left = @(Get-BctContainers)
+    if($left.Count -eq 0){ Log 'Audit: no BCT docker containers remain.' 'OK' }
+    else { $problems++; Log ("Audit: containers remain: {0}" -f (($left | ForEach-Object {$_.Name}) -join ', ')) 'WARN' }
   }
 
   Write-Host ''
   Write-Host '==================== SUMMARY ====================' -ForegroundColor Cyan
   $mode = 'REMOVED'; if($DryRun){ $mode = 'WOULD REMOVE (dry-run)' }
   foreach($k in ($script:Counts.Keys | Sort-Object)){ Write-Host ("  {0,-12} {1,4}  {2}" -f $k, $script:Counts[$k], $mode) }
-  if(-not $DryRun -and -not $SkipBackup){ Write-Host ("  Backup:      {0}" -f $BackupDir) -ForegroundColor Green }
+  if(-not $DryRun){ Write-Host ("  Backup:      {0}" -f $BackupDir) -ForegroundColor Green }
   Write-Host ("  Log:         {0}" -f $Log)
   Write-Host ("  Warnings:    {0}" -f $script:Warnings)
   Write-Host '=================================================' -ForegroundColor Cyan
@@ -473,14 +677,18 @@ function Final-Audit {
 # --------------------------------------------------------------------- main --
 
 if(!(Is-Admin)){
-  if($DryRun){
-    Log 'Not elevated - dry-run continues but task/service/firewall detection may be incomplete.' 'WARN'
-  } else {
-    Write-Host 'Elevation required - requesting administrator rights...' -ForegroundColor Yellow
-    $fwd = @('-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$PSCommandPath`"")
-    foreach($k in $PSBoundParameters.Keys){ if($PSBoundParameters[$k] -eq $true){ $fwd += "-$k" } }
-    try { Start-Process -FilePath 'powershell.exe' -ArgumentList $fwd -Verb RunAs; exit 0 }
-    catch { Write-Host 'Elevation declined. Run this script in PowerShell as Administrator.' -ForegroundColor Red; exit 1 }
+  # Elevate for real runs AND dry runs (unelevated previews miss HKLM/services/machine env vars)
+  Write-Host 'Elevation required for a complete view - requesting administrator rights...' -ForegroundColor Yellow
+  $fwd = @('-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$PSCommandPath`"",'-Elevated')
+  foreach($k in $PSBoundParameters.Keys){
+    if($k -ne 'Elevated' -and $PSBoundParameters[$k] -eq $true){ $fwd += "-$k" }
+  }
+  try {
+    $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList $fwd -Verb RunAs -Wait -PassThru
+    exit $proc.ExitCode
+  } catch {
+    if($DryRun){ Log 'Elevation declined - dry-run continues UNELEVATED: HKLM/services/machine-scope items may be missing from this preview.' 'WARN' }
+    else { Write-Host 'Elevation declined. Run this script in PowerShell as Administrator.' -ForegroundColor Red; exit 1 }
   }
 }
 
@@ -488,26 +696,33 @@ Write-Host ''
 if($DryRun){
   Write-Host 'BUSINESS CONTROL TOWER REMOVAL - DRY RUN (nothing will be changed)' -ForegroundColor Cyan
 } else {
-  Write-Host 'BUSINESS CONTROL TOWER COMPLETE REMOVAL v2' -ForegroundColor Red
+  Write-Host 'BUSINESS CONTROL TOWER COMPLETE REMOVAL v2.1' -ForegroundColor Red
   Write-Host 'Removes: tower, parity tasks, services, database, Docker assets, scripts.' -ForegroundColor Yellow
-  Write-Host 'A backup (data zip + Postgres dump + env vars) is taken FIRST unless -SkipBackup.' -ForegroundColor Green
+  Write-Host 'Backups taken FIRST: configs + env vars + Postgres dump + ALL project volumes + project zip.' -ForegroundColor Green
   $confirm = Read-Host 'Type REMOVE BUSINESS CONTROL TOWER to continue'
-  if($confirm -cne 'REMOVE BUSINESS CONTROL TOWER'){ Write-Host 'Cancelled. Nothing was removed.' -ForegroundColor Yellow; exit 0 }
+  if($confirm -cne 'REMOVE BUSINESS CONTROL TOWER'){
+    Write-Host 'Cancelled. Nothing was removed.' -ForegroundColor Yellow
+    if($Elevated){ Read-Host 'Press Enter to close this window' | Out-Null }
+    exit 0
+  }
 }
 
-Log ("Removal started. DryRun={0} SkipBackup={1} RemoveSharedTools={2}" -f [bool]$DryRun,[bool]$SkipBackup,[bool]$RemoveSharedTools)
+Log ("Removal started. DryRun={0} SkipBackup={1} RemoveSharedTools={2} ComposeProject={3}" -f [bool]$DryRun,[bool]$SkipBackup,[bool]$RemoveSharedTools,$ComposeProject)
 
-Remove-BctTasks        # 1. kill respawn triggers first
-Remove-BctServices     # 2. services too (v1 missed these)
-Remove-StartupEntries  # 3. Run/RunOnce/startup folders
-Stop-BctProcesses      # 4. now stop what's running (files unlock for backup)
-Backup-BctData         # 5. BACKUP while Docker is still up
-Remove-BctDockerAssets # 6. only now tear down containers/volumes
-Stop-DockerDesktop     # 7. only if nothing else depends on it
+Export-BctConfigs        # 1. task XMLs / service configs / registry / env vars saved BEFORE removal
+Remove-BctTasks          # 2. kill respawn triggers
+Remove-BctServices       # 3. services
+Remove-StartupEntries    # 4. Run/RunOnce/startup folders
+Stop-BctProcesses        # 5. stop what's running (files unlock for backup)
+Backup-BctData           # 6. pg dump (starts stopped containers), volume tars, project zip
+Assert-BackupGate 'destroy Docker containers and volumes'
+Remove-BctDockerAssets   # 7. teardown only after backup gate
+Stop-DockerDesktop
 Remove-Shortcuts
 Remove-FirewallRules
 Remove-BctEnvVars
 Restore-PowerPlan
+Assert-BackupGate 'permanently delete the project folder'
 Remove-ProjectFolder
 
 if(-not $DryRun){
@@ -526,9 +741,12 @@ $leftovers = Final-Audit
 Write-Host ''
 if($DryRun){
   Write-Host "Dry run complete. Review the log, then run without -DryRun to remove. Log: $Log" -ForegroundColor Cyan
+  if($Elevated){ Read-Host 'Press Enter to close this window' | Out-Null }
   exit 0
 }
 Write-Host "Removal finished. Log: $Log" -ForegroundColor Green
-if(-not $SkipBackup){ Write-Host "Backup: $BackupDir  (move bct_env_vars_SENSITIVE.txt somewhere safe, then delete it)" -ForegroundColor Green }
+Write-Host "Backup: $BackupDir" -ForegroundColor Green
+Write-Host '  -> move bct_env_vars_SENSITIVE.txt somewhere safe, then delete it from the Desktop.' -ForegroundColor Yellow
 Write-Host 'Restart Windows after reviewing the log.' -ForegroundColor Yellow
+if($Elevated){ Read-Host 'Press Enter to close this window' | Out-Null }
 if($leftovers -gt 0){ exit 2 } else { exit 0 }
