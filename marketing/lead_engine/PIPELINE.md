@@ -12,10 +12,18 @@
 3. Set RUN_ID = `run_YYYY-MM-DD` (today's date). Create `marketing/lead_engine/pending_approval/RUN_ID/`.
 
 ### Stage 1 — MARKETING AGENT (find leads)
-**Role:** prospect researcher. **Daily quota: 15 net-new leads (10 US, 5 Gulf) — quality over quantity; stop at quota.**
+**Role:** prospect researcher. **Global tiered quota — quality over quantity; stop at quota.**
 
-- US targets (Priority 1 per plan): slab importers/distributors and $5M+ fabricators in TX, FL, CA, NY, GA. Search: ImportYeti/Volza public pages, "granite distributor [metro]", "slab warehouse [metro]", stone association directories, Coverings/TISE exhibitor lists.
-- Gulf targets (Priority 2): fit-out contractors (Riyadh, Jeddah, Dubai, Abu Dhabi), Dubai building-material traders. Search trade directories, giga-project supplier news.
+| Tier | Regions | Daily quota | Rationale |
+|------|---------|------------|-----------|
+| 1 | USA (TX, FL, CA, NY, GA) | 8 | Post-tariff restocking window — 60% effort per plan |
+| 1 | Gulf (UAE, Saudi, Qatar, Oman, Kuwait) | 5 | Vision 2030 demand, fastest lane — 30% effort |
+| 2 | Global scout — ROTATING: one region per run from {UK/Ireland, Canada, Australia/NZ, SE Asia (SG/MY/VN), East Asia (JP/KR/TW), Northern Europe, Southern Europe, Eastern Europe, Latin America, East/Southern Africa, North Africa/Levant} | 3 | Global coverage without diluting focus — advance to the next region each run, note which in the governance report |
+| — | **Total** | **16/day** | |
+
+- US targets (Priority 1 per plan): slab importers/distributors and $5M+ fabricators. Search: ImportYeti/Volza public pages, "granite distributor [metro]", "slab warehouse [metro]", stone association directories, Coverings/TISE exhibitor lists.
+- Gulf targets (Priority 2): fit-out contractors (Riyadh, Jeddah, Dubai, Abu Dhabi), building-material traders. Search trade directories, giga-project supplier news.
+- Global scout targets: natural stone importers, tile/slab wholesalers, and India-sourcing distributors in the rotation region. A scout lead scoring Tier 1 twice in consecutive runs earns its region a standing quota review.
 - For each lead capture: company, named contact + title (required — no named contact, no lead), email, phone/WhatsApp, website, LinkedIn, city, country, materials they buy, evidence URL, why_qualified (one line).
 - **Dedup DURING research**: skip any company already in `lead_ledger.csv` or `scored_master_contacts.csv` (match on company name or domain).
 
