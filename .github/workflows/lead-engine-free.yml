@@ -1,0 +1,53 @@
+name: Lead Engine — Free (no credentials)
+
+# Deterministic, no-AI, no-key lead pipeline. Runs on the GitHub Actions FREE tier.
+# Processes every CSV dropped in marketing/lead_engine/inbox/ — normalize, dedup,
+# score, tier, govern, queue for approval, rebuild dashboard, commit. No secrets.
+
+on:
+  schedule:
+    - cron: '37 3 * * *'   # daily 03:37 UTC = 09:07 IST
+  push:
+    branches: [claude/marketing-email-drafts-cpZlm]
+    paths: ['marketing/lead_engine/inbox/**']   # fires the moment you drop a new source CSV
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lead-engine-free
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/marketing-email-drafts-cpZlm
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Normalize, score, tier, govern
+        run: python3 marketing/lead_engine/pipeline/normalize_and_score.py
+
+      - name: Rebuild dashboard
+        run: python3 marketing/dashboard/build_dashboard.py
+
+      - name: Commit results
+        run: |
+          git config user.name "Lead Engine (free)"
+          git config user.email "actions@github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add marketing/
+            git commit -m "Free lead pipeline: processed inbox $(date -u +%F_%H%M)"
+            git pull --rebase origin claude/marketing-email-drafts-cpZlm || true
+            git push origin HEAD:claude/marketing-email-drafts-cpZlm
+          else
+            echo "No changes to commit (empty inbox)."
+          fi
