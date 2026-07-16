@@ -12,14 +12,24 @@
 3. Set RUN_ID = `run_YYYY-MM-DD` (today's date). Create `marketing/lead_engine/pending_approval/RUN_ID/`.
 
 ### Stage 1 — MARKETING AGENT (find leads)
-**Role:** prospect researcher. **Global tiered quota — quality over quantity; stop at quota.**
+**Role:** prospect researcher. **Quality-gated volume — every lead needs a real evidence URL; never pad to hit quota.**
 
-| Tier | Regions | Daily quota | Rationale |
-|------|---------|------------|-----------|
-| 1 | USA (TX, FL, CA, NY, GA) | 8 | Post-tariff restocking window — 60% effort per plan |
-| 1 | Gulf (UAE, Saudi, Qatar, Oman, Kuwait) | 5 | Vision 2030 demand, fastest lane — 30% effort |
-| 2 | Global scout — ROTATING: one region per run from {UK/Ireland, Canada, Australia/NZ, SE Asia (SG/MY/VN), East Asia (JP/KR/TW), Northern Europe, Southern Europe, Eastern Europe, Latin America, East/Southern Africa, North Africa/Levant} | 3 | Global coverage without diluting focus — advance to the next region each run, note which in the governance report |
-| — | **Total** | **16/day** | |
+**Execution model:** the GitHub Actions workflow (`.github/workflows/lead-engine.yml`) runs this stage
+as **9 parallel region jobs, 3× per day** — see `AUTOMATION.md`. When run manually/inline instead, cover
+the same regions sequentially. Per-region, per-run quotas:
+
+| Region | Quota/run | Priority (per acquisition plan) |
+|--------|-----------|--------------------------------|
+| USA | 12 | Tier 1 — post-tariff restocking, 60% effort |
+| Gulf (Saudi priority) | 10 | Tier 1 — Vision 2030, fastest lane, 30% |
+| UK + Ireland | 8 | Scout — Indian sandstone paving fit |
+| EU | 8 | Scout |
+| Canada / ANZ / SE Asia | 6 each | Scout |
+| Latin America / Africa | 5 each | Scout |
+| **Ceiling** | **~66/run → ~200/day** | dedup filters this to 60–120 real leads/day |
+
+Global coverage every run (not rotating) — the parallel matrix makes full-planet sweeps cheap.
+US + Gulf keep the largest quotas so focus matches the plan even at high volume.
 
 - US targets (Priority 1 per plan): slab importers/distributors and $5M+ fabricators. Search: ImportYeti/Volza public pages, "granite distributor [metro]", "slab warehouse [metro]", stone association directories, Coverings/TISE exhibitor lists.
 - Gulf targets (Priority 2): fit-out contractors (Riyadh, Jeddah, Dubai, Abu Dhabi), building-material traders. Search trade directories, giga-project supplier news.
