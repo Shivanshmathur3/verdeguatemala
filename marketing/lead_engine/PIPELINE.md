@@ -61,10 +61,11 @@ Also record: `RAW_COUNT` (number of rows).
 
 **Output:** `pending_approval/RUN_ID/governance_report.md` — every check with PASS/FAIL + evidence, rejected-lead list with reasons, and a final line: `RECOMMENDATION: APPROVE` (all pass) or `RECOMMENDATION: HOLD — [reason]` (any fail). **A failed parity check means the batch is queued as HOLD, never silently fixed.**
 
-### Stage 4 — Ledger + Queue + Commit
+### Stage 4 — Ledger + Queue + Dashboard + Commit
 1. Append every lead (all tiers incl. rejected) to `lead_ledger.csv` with status `pending` / `rejected`.
 2. Add a row to `approval_queue.md`: run id, date, counts, recommendation, path.
-3. `git add marketing/lead_engine/ && git commit -m "Lead engine RUN_ID: X leads (Y Tier1) — [APPROVE/HOLD]" && git push origin claude/marketing-email-drafts-cpZlm` (pull --rebase first if push rejected).
+3. **Refresh the dashboard**: `python3 marketing/dashboard/build_dashboard.py` (regenerates `index.html` from the live files so it reflects this run).
+4. `git add marketing/ && git commit -m "Lead engine RUN_ID: X leads (Y Tier1) — [APPROVE/HOLD]" && git push origin claude/marketing-email-drafts-cpZlm` (pull --rebase first if push rejected).
 4. End the run with a short summary: counts, recommendation, top 3 leads by score.
 
 ## Failure Handling
