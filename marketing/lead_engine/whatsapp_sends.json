@@ -1,0 +1,27 @@
+{
+  "_comment": "One-tap WhatsApp click-to-send entries for the dashboard. number = international, digits only (no + or leading 0). message = the draft; [your name] is replaced by you in WhatsApp before hitting send. Add an entry when a lead's WhatsApp number is verified.",
+  "sends": [
+    {
+      "company": "AkmaStone",
+      "city": "Jeddah, Saudi Arabia",
+      "number": "966531972124",
+      "verified": true,
+      "message": "Hi, this is [your name] from Divya Stones — Verde Guatemala marble quarry owners in Udaipur, India. You already source from India, so you know the quality; we ship green marble container-direct, 10-14 days to Jeddah, FOB Mundra. For your Riyadh/Jeddah project work I can send lot photos + FOB pricing today. Shall I?"
+    },
+    {
+      "company": "Fanar Marble Factory",
+      "city": "Riyadh, Saudi Arabia",
+      "number": "",
+      "verified": false,
+      "message": "Hi, [your name] from Divya Stones, Udaipur. We're Verde Guatemala green marble quarry owners exporting container-direct. Given Fanar's scale and your India sourcing, I'd like to send FOB pricing + current lot photos for your Riyadh projects. Fastest lane India to Dammam, ~2 weeks. May I send them?"
+    },
+    {
+      "company": "Hari Stones Limited",
+      "city": "Vancouver, Canada",
+      "number": "16044444274",
+      "verified": true,
+      "note": "landline — confirm it accepts WhatsApp; otherwise call",
+      "message": "Hi, this is [your name] from Divya Stones — quarry owners in Udaipur exporting Verde Guatemala green marble direct, FOB Mundra to Vancouver. If green marble has a place in your quartzite/granite range, I'll send lot photos and FOB pricing to benchmark against your current source. Open to it?"
+    }
+  ]
+}

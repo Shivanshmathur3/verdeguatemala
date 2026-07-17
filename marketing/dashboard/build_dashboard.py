@@ -9,7 +9,7 @@ index.html. Re-run it any time (or from the lead engine) to refresh the numbers.
 
 No third-party dependencies. Safe to run repeatedly.
 """
-import csv, os, glob, html, datetime
+import csv, os, glob, html, datetime, json, urllib.parse
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 MK   = os.path.join(REPO, "marketing")
@@ -92,6 +92,18 @@ forecast = {
 
 now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
+# WhatsApp one-tap click-to-send entries
+wa_sends = []
+wa_path = os.path.join(REPO, "marketing/lead_engine/whatsapp_sends.json")
+if os.path.exists(wa_path):
+    try:
+        wa_sends = json.load(open(wa_path, encoding="utf-8")).get("sends", [])
+    except Exception:
+        wa_sends = []
+
+def wa_link(number, message):
+    return f"https://wa.me/{number}?text={urllib.parse.quote(message)}"
+
 # ---- html helpers ------------------------------------------------------------
 def esc(s): return html.escape(str(s if s is not None else ""))
 
@@ -126,6 +138,23 @@ funnel_html = "".join(
 smax = max(v for _,v in forecast["scenarios"])
 scen_html = "".join(bar(l, v, smax, "gold" if "Realistic" in l else "muted")
                     for l,v in forecast["scenarios"])
+
+wa_cards = []
+for s in wa_sends:
+    ready = s.get("verified") and s.get("number")
+    if ready:
+        href = wa_link(s["number"], s["message"])
+        btn = f'<a class="wa-btn" href="{esc(href)}" target="_blank" rel="noopener">Send on WhatsApp &#8599;</a>'
+        badge = pill("number verified", "good")
+    else:
+        btn = '<span class="wa-btn wa-btn-off">number needed</span>'
+        badge = pill("find number first", "warn")
+    note = f'<div class="wa-note">{esc(s["note"])}</div>' if s.get("note") else ""
+    wa_cards.append(f'''<div class="wa-card">
+      <div class="wa-head"><span class="wa-co">{esc(s["company"])}</span>{badge}</div>
+      <div class="wa-city">{esc(s.get("city",""))}</div>
+      <div class="wa-msg">{esc(s["message"][:150])}…</div>{note}{btn}</div>''')
+wa_html = "".join(wa_cards) if wa_cards else '<div class="notice">No WhatsApp sends staged yet.</div>'
 
 exp_html = "".join(
     f'''<div class="exp"><div class="exp-head"><span class="exp-id">{esc(i)}</span>
@@ -316,6 +345,19 @@ tr:last-child td {{ border-bottom:none; }}
 .lc-m {{ font-size:11px; color:var(--ink-soft); font-family:var(--mono); }}
 .lc-arrow {{ color:var(--accent); font-size:13px; }}
 
+.wa-card {{ border:1px solid var(--line); border-radius:9px; padding:11px 13px; margin-bottom:10px;
+  background:var(--panel-2); }}
+.wa-head {{ display:flex; justify-content:space-between; align-items:center; gap:8px; }}
+.wa-co {{ font-weight:600; font-size:13.5px; }}
+.wa-city {{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }}
+.wa-msg {{ font-size:11.5px; color:var(--ink-soft); margin:7px 0 9px; line-height:1.45; }}
+.wa-note {{ font-size:11px; color:var(--warn); margin-bottom:8px; }}
+.wa-btn {{ display:inline-block; background:#25D366; color:#0a2417; text-decoration:none; font-weight:600;
+  font-size:12.5px; padding:7px 14px; border-radius:7px; }}
+.wa-btn:hover {{ filter:brightness(1.06); }}
+.wa-btn:focus-visible {{ outline:2px solid var(--accent); outline-offset:2px; }}
+.wa-btn-off {{ background:var(--panel); color:var(--ink-soft); border:1px solid var(--line);
+  cursor:default; font-weight:500; }}
 .notice {{ font-size:12.5px; color:var(--ink-soft); border-top:1px solid var(--line); margin-top:8px;
   padding-top:10px; }}
 footer {{ margin-top:34px; padding-top:18px; border-top:1px solid var(--line); font-size:12px;
@@ -391,6 +433,13 @@ footer {{ margin-top:34px; padding-top:18px; border-top:1px solid var(--line); f
   </div>
 
   <aside class="side">
+
+    <div class="card">
+      <h2>WhatsApp — one-tap send <span class="eyebrow">tap → review → send</span></h2>
+      {wa_html}
+      <div class="notice">Opens WhatsApp with the message pre-typed. Replace “[your name]”,
+      glance, and hit send — nothing sends automatically.</div>
+    </div>
 
     <div class="card">
       <h2>Growth experiments <span class="eyebrow">3 active</span></h2>
