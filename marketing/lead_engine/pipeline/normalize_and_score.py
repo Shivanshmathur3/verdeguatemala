@@ -96,11 +96,20 @@ def compliance_ok(r):
     return has_company and has_channel and has_truth
 
 def load_ledger_keys():
+    """Seen-keys = everything in the ledger AND everything already in the scored master
+    pipeline, so the engine never re-proposes a company that's already being worked."""
     keys = set()
     if os.path.exists(LEDGER):
         with open(LEDGER, newline="", encoding="utf-8", errors="replace") as f:
             for row in csv.DictReader(f):
                 k = (row.get("domain_or_email") or "").strip().lower()
+                if k: keys.add(k)
+    master = os.path.join(REPO, "marketing", "scored_master_contacts.csv")
+    if os.path.exists(master):
+        with open(master, newline="", encoding="utf-8", errors="replace") as f:
+            for row in csv.DictReader(f):
+                dom = domain(row.get("Website","")) or domain(row.get("Email",""))
+                k = dedup_key(row.get("Company",""), dom)
                 if k: keys.add(k)
     return keys
 
