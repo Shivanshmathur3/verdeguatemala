@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sales Proposal — Divya Stones</title>
+  <style>
+    /* ── Reset & base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Georgia', serif;
+      font-size: 11pt;
+      color: #1a1a1a;
+      background: #f4f4f4;
+      line-height: 1.6;
+    }
+
+    /* ── Page shell — A4 centred ──────────────────────────────── */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 20px auto;
+      background: #ffffff;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header band ──────────────────────────────────────────── */
+    .header {
+      background: #8B1A1A;
+      color: #ffffff;
+      padding: 24px 32px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .header-left .company-name {
+      font-size: 20pt;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .header-left .tagline {
+      font-size: 8.5pt;
+      font-style: italic;
+      opacity: 0.85;
+      margin-top: 3px;
+      letter-spacing: 0.5px;
+      font-family: 'Arial', sans-serif;
+    }
+
+    .header-right {
+      text-align: right;
+      font-family: 'Arial', sans-serif;
+      font-size: 8.5pt;
+      opacity: 0.9;
+      line-height: 1.7;
+    }
+
+    .header-right .doc-meta {
+      margin-top: 6px;
+      font-size: 8pt;
+      opacity: 0.8;
+    }
+
+    /* ── Accent stripe ────────────────────────────────────────── */
+    .accent-stripe {
+      height: 4px;
+      background: linear-gradient(90deg, #C0392B, #8B1A1A, #5D1010);
+    }
+
+    /* ── Recipient bar ────────────────────────────────────────── */
+    .recipient-bar {
+      background: #fdf9f9;
+      border-bottom: 1px solid #e8d5d5;
+      padding: 12px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+    }
+
+    .recipient-bar .to-block strong {
+      color: #8B1A1A;
+      text-transform: uppercase;
+      font-size: 8pt;
+      letter-spacing: 1px;
+    }
+
+    .recipient-bar .to-block .name {
+      font-size: 11pt;
+      font-weight: bold;
+      color: #1a1a1a;
+      margin-top: 1px;
+    }
+
+    .recipient-bar .meta-block {
+      text-align: right;
+      font-size: 8.5pt;
+      color: #555;
+      line-height: 1.7;
+    }
+
+    .recipient-bar .meta-block strong {
+      color: #1a1a1a;
+    }
+
+    /* ── Body ─────────────────────────────────────────────────── */
+    .body {
+      padding: 26px 32px 20px;
+      flex: 1;
+    }
+
+    /* ── Section chrome ───────────────────────────────────────── */
+    .section {
+      margin-bottom: 22px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .section-number {
+      background: #8B1A1A;
+      color: #ffffff;
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+      font-weight: bold;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .section-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 10.5pt;
+      font-weight: bold;
+      color: #8B1A1A;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .section-rule {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, #e8d5d5, transparent);
+    }
+
+    .section-body {
+      padding-left: 34px;
+      font-size: 10pt;
+      line-height: 1.65;
+      color: #2a2a2a;
+    }
+
+    /* ── Opening paragraph style ──────────────────────────────── */
+    .opening-statement {
+      font-size: 10.5pt;
+      font-style: italic;
+      border-left: 3px solid #8B1A1A;
+      padding-left: 14px;
+      margin-bottom: 10px;
+      color: #333;
+      line-height: 1.7;
+    }
+
+    /* ── Pain bullets ─────────────────────────────────────────── */
+    .pain-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 10px;
+    }
+
+    .pain-list li {
+      padding: 5px 0 5px 22px;
+      position: relative;
+      border-bottom: 1px dotted #e8d5d5;
+      font-family: 'Arial', sans-serif;
+      font-size: 9.5pt;
+    }
+
+    .pain-list li:last-child { border-bottom: none; }
+
+    .pain-list li::before {
+      content: "—";
+      position: absolute;
+      left: 0;
+      color: #8B1A1A;
+      font-weight: bold;
+    }
+
+    .pain-note {
+      background: #fdf9f9;
+      border: 1px solid #e8d5d5;
+      border-left: 3px solid #C0392B;
+      padding: 8px 12px;
+      font-family: 'Arial', sans-serif;
+      font-size: 8.5pt;
+      font-style: italic;
+      color: #555;
+      border-radius: 0 3px 3px 0;
+      margin-top: 8px;
+    }
+
+    /* ── Solution bullets ─────────────────────────────────────── */
+    .solution-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .solution-list li {
+      padding: 5px 0 5px 22px;
+      position: relative;
+      font-family: 'Arial', sans-serif;
+      font-size: 9.5pt;
+      border-bottom: 1px dotted #e8d5d5;
+    }
+
+    .solution-list li:last-child { border-bottom: none; }
+
+    .solution-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #8B1A1A;
+      font-weight: bold;
+    }
+
+    .solution-list li strong {
+      color: #1a1a1a;
+    }
+
+    /* ── Products table ───────────────────────────────────────── */
+    .products-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+    }
+
+    .products-table thead tr {
+      background: #8B1A1A;
+      color: #ffffff;
+    }
+
+    .products-table thead th {
+      padding: 7px 10px;
+      text-align: left;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border: 1px solid #701515;
+    }
+
+    .products-table tbody tr {
+      border-bottom: 1px solid #e8d5d5;
+    }
+
+    .products-table tbody tr:nth-child(even) {
+      background: #fdf9f9;
+    }
+
+    .products-table tbody td {
+      padding: 8px 10px;
+      border: 1px solid #e8d5d5;
+      vertical-align: top;
+    }
+
+    .products-table tbody td:last-child {
+      font-weight: 600;
+      color: #8B1A1A;
+      white-space: nowrap;
+    }
+
+    .products-table tfoot td {
+      padding: 6px 10px;
+      font-family: 'Arial', sans-serif;
+      font-size: 8pt;
+      font-style: italic;
+      color: #888;
+      border-top: 1px solid #e8d5d5;
+    }
+
+    /* ── Proof / testimonials ─────────────────────────────────── */
+    .case-study-box {
+      background: #fdf9f9;
+      border: 1px solid #e8d5d5;
+      border-radius: 4px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+      line-height: 1.6;
+    }
+
+    .case-study-box .cs-label {
+      font-size: 7.5pt;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #8B1A1A;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .testimonial {
+      background: #fdf9f9;
+      border: 1px solid #e8d5d5;
+      border-top: 3px solid #8B1A1A;
+      padding: 11px 13px;
+      border-radius: 0 0 4px 4px;
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+    }
+
+    .testimonial .quote-mark {
+      font-size: 22pt;
+      color: #e8d5d5;
+      line-height: 0.8;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .testimonial .quote-text {
+      font-style: italic;
+      color: #333;
+      line-height: 1.55;
+      font-size: 8.5pt;
+      margin-bottom: 8px;
+    }
+
+    .testimonial .quote-attribution {
+      font-size: 8pt;
+      font-weight: bold;
+      color: #8B1A1A;
+    }
+
+    .testimonial .quote-attribution span {
+      font-weight: normal;
+      color: #888;
+    }
+
+    /* ── CTA box ──────────────────────────────────────────────── */
+    .cta-box {
+      background: #8B1A1A;
+      color: #ffffff;
+      padding: 16px 20px;
+      border-radius: 4px;
+      font-family: 'Arial', sans-serif;
+    }
+
+    .cta-box .cta-heading {
+      font-size: 10.5pt;
+      font-weight: bold;
+      margin-bottom: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    .cta-box .cta-body {
+      font-size: 9pt;
+      opacity: 0.9;
+      line-height: 1.6;
+    }
+
+    .cta-box .cta-action {
+      margin-top: 10px;
+      font-size: 9.5pt;
+      font-weight: bold;
+      background: #ffffff;
+      color: #8B1A1A;
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 3px;
+    }
+
+    /* ── Sender sign-off ──────────────────────────────────────── */
+    .signoff {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid #e8d5d5;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .signoff-left {
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+      line-height: 1.7;
+    }
+
+    .signoff-left .sender-name {
+      font-size: 11pt;
+      font-weight: bold;
+      color: #1a1a1a;
+    }
+
+    .signoff-left .sender-title {
+      color: #8B1A1A;
+      font-weight: 600;
+    }
+
+    .signoff-left .sender-contact {
+      font-size: 8.5pt;
+      color: #555;
+    }
+
+    .signoff-right {
+      text-align: right;
+    }
+
+    .signoff-right .sig-box {
+      width: 140px;
+      height: 40px;
+      border-bottom: 1.5px solid #8B1A1A;
+      margin-left: auto;
+      margin-bottom: 4px;
+    }
+
+    .signoff-right .sig-label {
+      font-family: 'Arial', sans-serif;
+      font-size: 8pt;
+      color: #888;
+    }
+
+    /* ── Footer ───────────────────────────────────────────────── */
+    .footer {
+      background: #8B1A1A;
+      color: rgba(255,255,255,0.75);
+      text-align: center;
+      font-family: 'Arial', sans-serif;
+      font-size: 7.5pt;
+      padding: 9px 32px;
+      letter-spacing: 0.3px;
+    }
+
+    .footer strong {
+      color: #ffffff;
+    }
+
+    /* ── Print overrides ──────────────────────────────────────── */
+    @media print {
+      body { background: #ffffff; }
+      .page { margin: 0; box-shadow: none; width: 100%; min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ═══════════════════════ HEADER ════════════════════════════ -->
+  <div class="header">
+    <div class="header-left">
+      <div class="company-name">Divya Stones</div>
+      <div class="tagline">Verde Guatemala — Indian Green Marble Exporters Since 1999</div>
+    </div>
+    <div class="header-right">
+      sales@divyastones.com<br>
+      +91-94141-67278<br>
+      divyastones.com<br>
+      <div class="doc-meta">Udaipur, Rajasthan 313001, India</div>
+    </div>
+  </div>
+
+  <div class="accent-stripe"></div>
+
+  <!-- ═══════════════════════ RECIPIENT BAR ═════════════════════ -->
+  <div class="recipient-bar">
+    <div class="to-block">
+      <strong>Prepared for</strong>
+      <div class="name">[Contact Name], [Company Name]</div>
+      <div style="color:#555; font-size:8.5pt;">[City, Country] &nbsp;|&nbsp; [buyer@email.com]</div>
+    </div>
+    <div class="meta-block">
+      <strong>Proposal Ref:</strong> DS-PROP-[XXXX]<br>
+      <strong>Date:</strong> [DD Month YYYY]<br>
+      <strong>Valid Until:</strong> [DD Month YYYY]<br>
+      <strong>Prepared by:</strong> Shivansh Mathur
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ BODY ══════════════════════════════ -->
+  <div class="body">
+
+    <!-- ─── SECTION 1: Opening / Pain ──────────────────────────── -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">1</div>
+        <div class="section-title">Your Situation</div>
+        <div class="section-rule"></div>
+      </div>
+      <div class="section-body">
+
+        <div class="opening-statement">
+          Based on our conversation on [date], [Company] is looking for:
+        </div>
+
+        <ul class="pain-list">
+          <li>[Specific need 1 — e.g., a reliable supply of Forest Green slabs in 2 cm thickness, minimum 1 container per quarter, with consistent colour grading across shipments]</li>
+          <li>[Specific need 2 — e.g., pre-shipment photo approval before each container is loaded, to eliminate surprise on arrival]</li>
+          <li>[Specific need 3 — e.g., a direct quarry relationship that removes broker markup from your cost structure]</li>
+        </ul>
+
+        <div class="pain-note">
+          [Add one sentence here referencing a specific pain point from the call — e.g., "You mentioned that your current supplier has been inconsistent on veining grade — that is something we grade and document at processing, so you can verify before the stone is packed."]
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── SECTION 2: Our Solution ─────────────────────────────── -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">2</div>
+        <div class="section-title">What Divya Stones Will Deliver</div>
+        <div class="section-rule"></div>
+      </div>
+      <div class="section-body">
+        <p style="font-family:'Arial',sans-serif; font-size:9pt; margin-bottom:10px; color:#444;">
+          We are quarry owners and direct exporters of Verde Guatemala (Indian Green Marble) from Udaipur, Rajasthan — in operation since 1999. For [Company], we propose:
+        </p>
+        <ul class="solution-list">
+          <li><strong>Variety:</strong> [e.g., Forest Green / Spider Green / Dark Green — specify based on discovery call]</li>
+          <li><strong>Finish:</strong> [e.g., Polished / Honed / Brushed]</li>
+          <li><strong>Format:</strong> [e.g., 260×60 cm slabs, 2 cm thickness — or tiles 12×12, 18×18 in, specify]</li>
+          <li><strong>Volume:</strong> [e.g., 1 × 20 ft container per shipment, approximately 450 sq m / 4,800 sq ft]</li>
+          <li><strong>Grading:</strong> A-grade, consistent colour tone, pre-shipment photos provided for buyer approval before loading</li>
+          <li><strong>Packaging:</strong> Sea-worthy wooden crates with foam protection and bubble wrap on every slab</li>
+          <li><strong>Lead time:</strong> [e.g., 4–6 weeks from order confirmation and advance receipt, FOB Mundra]</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ─── SECTION 3: Products & Pricing ───────────────────────── -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">3</div>
+        <div class="section-title">Recommended Products &amp; Pricing</div>
+        <div class="section-rule"></div>
+      </div>
+      <div class="section-body">
+        <table class="products-table">
+          <thead>
+            <tr>
+              <th>Variety</th>
+              <th>Finish</th>
+              <th>Size / Format</th>
+              <th>Thickness</th>
+              <th>Min. Order</th>
+              <th>FOB Price (USD/sq ft)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>[Forest Green]</td>
+              <td>[Polished]</td>
+              <td>[Slabs up to 260×60 cm]</td>
+              <td>[2 cm]</td>
+              <td>[1 container ~4,800 sq ft]</td>
+              <td>[USD 4.00–5.50]</td>
+            </tr>
+            <tr>
+              <td>[Spider Green]</td>
+              <td>[Polished]</td>
+              <td>[Slabs up to 260×60 cm]</td>
+              <td>[2 cm]</td>
+              <td>[1 container ~4,800 sq ft]</td>
+              <td>[USD 4.50–6.00]</td>
+            </tr>
+            <tr>
+              <td>[Add variety as needed]</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="6">
+                Pricing valid 30 days from date of this proposal. FOB prices ex-Mundra Port, India. Freight, insurance and import duties are the buyer's responsibility. Actual prices confirmed at order stage.
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── SECTION 4: Proof ─────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">4</div>
+        <div class="section-title">Why Buyers Trust Us</div>
+        <div class="section-rule"></div>
+      </div>
+      <div class="section-body">
+
+        <div class="case-study-box">
+          <div class="cs-label">Case Study — [Buyer Geography / Use Case]</div>
+          [Replace with a relevant case study from marketing/case_studies/. Example: A stone distributor in Dallas, TX switched to Divya Stones from a broker in 2023. Over 8 months and 3 containers, their landed cost dropped 28% on equivalent Verde Guatemala grades — with pre-shipment photo documentation on every container, eliminating the colour-inconsistency disputes they had experienced previously.]
+        </div>
+
+        <div class="testimonials-grid">
+          <div class="testimonial">
+            <span class="quote-mark">"</span>
+            <div class="quote-text">
+              [Testimonial 1 — replace with actual buyer quote. e.g., "Consistent quality, reliable lead times, and they photograph everything before it ships. First time in four years I have not had a dispute on a verde container."]
+            </div>
+            <div class="quote-attribution">
+              [Buyer Name / First name] &nbsp;<span>— [Company / Role], [City, Country]</span>
+            </div>
+          </div>
+          <div class="testimonial">
+            <span class="quote-mark">"</span>
+            <div class="quote-text">
+              [Testimonial 2 — replace with actual buyer quote. e.g., "The direct quarry access and no-broker pricing made a real difference to our margins on this project. We have since placed three repeat orders."]
+            </div>
+            <div class="quote-attribution">
+              [Buyer Name / First name] &nbsp;<span>— [Company / Role], [City, Country]</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── SECTION 5: Next Step CTA ────────────────────────────── -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">5</div>
+        <div class="section-title">Next Step</div>
+        <div class="section-rule"></div>
+      </div>
+      <div class="section-body">
+        <div class="cta-box">
+          <div class="cta-heading">If this proposal looks right for [Company]:</div>
+          <div class="cta-body">
+            Reply to this email to confirm your interest and I will send a Proforma Invoice within 24 hours.<br><br>
+            If you have questions before confirming, I am available for a 15-minute call — reply with a time that works, or book directly at [calendar link].
+          </div>
+          <div class="cta-action">Reply to confirm &rarr; sales@divyastones.com</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Sign-off ──────────────────────────────────────────────── -->
+    <div class="signoff">
+      <div class="signoff-left">
+        <div class="sender-name">Shivansh Mathur</div>
+        <div class="sender-title">Divya Stones</div>
+        <div class="sender-contact">
+          sales@divyastones.com &nbsp;|&nbsp; +91-94141-67278 &nbsp;|&nbsp; divyastones.com
+        </div>
+      </div>
+      <div class="signoff-right">
+        <div class="sig-box"></div>
+        <div class="sig-label">Authorized Signatory</div>
+      </div>
+    </div>
+
+  </div><!-- /body -->
+
+  <!-- ═══════════════════════ FOOTER ════════════════════════════ -->
+  <div class="footer">
+    <strong>Divya Stones</strong> &nbsp;|&nbsp; Udaipur, Rajasthan 313001, India &nbsp;|&nbsp;
+    +91-94141-67278 &nbsp;|&nbsp; sales@divyastones.com &nbsp;|&nbsp; divyastones.com
+    &nbsp;|&nbsp; Verde Guatemala exporters since 1999
+  </div>
+
+</div><!-- /page -->
+
+</body>
+</html>

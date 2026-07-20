@@ -1,0 +1,18 @@
+{
+  "_comment": "Flexible header mapping so ANY source CSV (ImportYeti, Volza, Panjiva, trade-show lists, directory exports) normalizes into the lead schema. Matching is case-insensitive substring on the source header. First match wins; order matters.",
+  "company":        ["company", "consignee", "buyer", "importer", "organisation", "organization", "business name", "name of company"],
+  "contact_name":   ["contact_name", "contact name", "contact person", "person", "name"],
+  "contact_title":  ["contact_title", "title", "designation", "role", "position"],
+  "email":          ["email", "e-mail", "mail"],
+  "phone":          ["phone", "telephone", "tel", "mobile", "contact number"],
+  "whatsapp":       ["whatsapp", "wa"],
+  "website":        ["website", "web", "url", "site", "domain"],
+  "linkedin":       ["linkedin"],
+  "city":           ["city", "town"],
+  "country":        ["country", "nation", "consignee country", "destination country"],
+  "materials":      ["materials", "material", "product", "commodity", "goods", "hs description", "product description", "imports"],
+  "evidence_url":   ["evidence_url", "evidence", "source_url", "source url", "record url", "shipment url", "profile"],
+  "supplier_country": ["supplier_country", "current_supplier_country", "origin", "shipper country", "supplier country", "imports_from", "sourced from"],
+  "port":           ["port", "port of unlading", "us port", "arrival port", "discharge port"],
+  "source_tag":     ["source_tag", "source", "dataset"]
+}

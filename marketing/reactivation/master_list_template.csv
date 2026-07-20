@@ -1,0 +1,4 @@
+company,contact_name,country,materials_ordered,last_order_year,est_lifetime_volume,status,segment,why_they_left,referral_given,next_action,outcome
+EXAMPLE Atlantic Stone Distributors,John Meyer,USA,"Steel Grey granite, Verde Guatemala slabs",2019,14 containers,active_in_market,A,"switched to Brazil on price during tariff year",,owner email then call,
+EXAMPLE Gulf Marble Trading LLC,Khalid Rahman,UAE,"Verde Guatemala tiles, Forest Green slabs",2021,6 containers,unknown,C,,,WhatsApp with current price list,
+EXAMPLE Milano Stone Imports,Paolo Ricci,Italy,"Emerald Green slabs",2015,3 containers,exited,B,retired 2022,,warm call - referral ask,

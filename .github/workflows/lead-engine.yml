@@ -1,0 +1,162 @@
+name: Lead Engine — Always-On Global Discovery
+
+# High-volume, server-side lead generation. Fans out across world regions in
+# PARALLEL, three times a day, then a single aggregate job dedups + scores +
+# rebuilds the dashboard + commits. No local machine involved.
+#
+# IMPORTANT — to enable scheduled runs:
+#   1. Add repo secret ANTHROPIC_API_KEY (Settings > Secrets and variables > Actions).
+#   2. Scheduled workflows only fire from the DEFAULT branch. Either merge this file
+#      to the default branch, or use the "Run workflow" button (workflow_dispatch)
+#      which works from any branch right now.
+
+on:
+  schedule:
+    - cron: '17 2 * * *'    # 02:17 UTC  = 07:47 IST  (pre-workday batch)
+    - cron: '17 10 * * *'   # 10:17 UTC  = 15:47 IST  (midday batch)
+    - cron: '17 18 * * *'   # 18:17 UTC  = 23:47 IST  (overnight batch)
+  workflow_dispatch:
+    inputs:
+      quota_per_region:
+        description: 'Net-new leads to target per region per run'
+        default: '10'
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lead-engine
+  cancel-in-progress: false
+
+env:
+  BRANCH: claude/marketing-email-drafts-cpZlm
+
+jobs:
+  # ---- Fan-out: one parallel job per region (this is the "maximum data" lever) ----
+  discover:
+    strategy:
+      fail-fast: false          # one region failing never blocks the others
+      max-parallel: 5
+      matrix:
+        region:
+          - { key: us,      label: "USA (TX, FL, CA, NY, GA, AZ, CO, WA, MA, GA)", quota: 12 }
+          - { key: gulf,    label: "Gulf (Saudi priority, UAE, Qatar, Oman, Kuwait)", quota: 10 }
+          - { key: uk,      label: "UK + Ireland (incl. Indian sandstone paving importers)", quota: 8 }
+          - { key: canada,  label: "Canada (Toronto, Vancouver, Montreal, Calgary)", quota: 6 }
+          - { key: anz,     label: "Australia + New Zealand", quota: 6 }
+          - { key: eu,      label: "EU (Germany, Italy, Spain, Netherlands, France)", quota: 8 }
+          - { key: seasia,  label: "SE Asia (Singapore, Malaysia, Vietnam — finished stone only)", quota: 6 }
+          - { key: latam,   label: "Latin America (Mexico, Panama, Dominican Rep., Chile)", quota: 5 }
+          - { key: africa,  label: "Africa (Kenya, Nigeria, South Africa, Egypt, Morocco)", quota: 5 }
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }}
+          fetch-depth: 0
+
+      - name: Discover leads for ${{ matrix.region.label }}
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: "--max-turns 120"
+          prompt: |
+            You are the MARKETING stage of the Divya Stones lead engine for ONE region.
+            Region: ${{ matrix.region.label }}
+            Target: ${{ github.event.inputs.quota_per_region || matrix.region.quota }} NET-NEW leads.
+
+            Read marketing/lead_engine/PIPELINE.md Stage 1 for the full rules first.
+
+            DEDUP (critical): read marketing/lead_engine/lead_ledger.csv and
+            marketing/scored_master_contacts.csv and skip any company already present
+            (match by name OR domain). Only genuinely new companies count.
+
+            Every lead REQUIRES: company, contact_name + title (a named person; for Gulf a
+            company with active WhatsApp may use "Procurement Team"), email, phone, whatsapp,
+            website, city, country, materials they import, evidence_url (a real page proving
+            they exist and import stone), why_qualified (one line), draft_hook (one-line
+            personalization for outreach). NEVER invent a contact, email, or evidence URL —
+            if you cannot verify it, leave the field blank and mark enrichment_status.
+
+            Targets: stone/marble/granite slab importers & distributors, tile wholesalers,
+            fabricator chains importing direct, and (for UK/EU/ANZ) Indian sandstone paving
+            importers. Prefer proven container-buyers. Use web search + real company pages.
+            Do NOT scrape Google result pages; use ImportYeti/company sites/directories.
+
+            Write ONLY this file (do NOT commit — the aggregate job commits):
+              marketing/lead_engine/pending_approval/run_${{ github.run_id }}/leads_${{ matrix.region.key }}.csv
+            Headers: company,contact_name,contact_title,email,phone,whatsapp,website,linkedin,city,country,materials,evidence_url,why_qualified,draft_hook,enrichment_status
+
+      - name: Upload region results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: leads-${{ matrix.region.key }}-${{ github.run_id }}
+          path: marketing/lead_engine/pending_approval/run_${{ github.run_id }}/leads_${{ matrix.region.key }}.csv
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ---- Fan-in: dedup + score + govern + dashboard + single commit ----
+  aggregate:
+    needs: discover
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }}
+          fetch-depth: 0
+
+      - name: Collect region CSVs
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/region-leads
+          pattern: leads-*-${{ github.run_id }}
+          merge-multiple: true
+
+      - name: Stage region files into the run folder
+        run: |
+          RUN="marketing/lead_engine/pending_approval/run_${{ github.run_id }}"
+          mkdir -p "$RUN"
+          cp -f /tmp/region-leads/*.csv "$RUN"/ 2>/dev/null || echo "No region CSVs produced this run."
+          ls -la "$RUN" || true
+
+      - name: Aggregate, score, govern, refresh dashboard, commit
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: "--max-turns 120"
+          prompt: |
+            You are the STRATEGY + GOVERNING + COMMIT stages of the Divya Stones lead engine.
+            Region CSVs from the parallel discovery jobs are in
+            marketing/lead_engine/pending_approval/run_${{ github.run_id }}/leads_*.csv.
+
+            Read marketing/lead_engine/PIPELINE.md and execute Stages 2, 3, 4:
+
+            STRATEGY: merge all leads_*.csv into leads_scored.csv. Dedup once more across
+            regions AND against lead_ledger.csv / scored_master_contacts.csv. Score & tier
+            each lead per the rubric. For Tier 1 leads, draft Day-1 outreach from the
+            sequence templates into a drafts/ subfolder. Drafts only — never send.
+
+            GOVERNING (independent recompute): parity checks P1-P5 and compliance C1-C4.
+            Reject any lead with no evidence URL or an unverifiable contact. Write
+            governance_report.md ending with RECOMMENDATION: APPROVE or HOLD.
+
+            COMMIT:
+            - Append every lead (all tiers incl. rejected) to lead_ledger.csv.
+            - Add the run row to approval_queue.md (run id, date, counts, recommendation).
+            - Rebuild the dashboard: python3 marketing/dashboard/build_dashboard.py
+            - Then:
+              git config user.name "Lead Engine Bot" &&
+              git config user.email "actions@github.com" &&
+              git add marketing/ &&
+              git commit -m "Lead engine run ${{ github.run_id }}: [N] leads ([M] Tier1) — [APPROVE/HOLD]" &&
+              (git pull --rebase origin ${{ env.BRANCH }} || true) &&
+              git push origin HEAD:${{ env.BRANCH }}
+
+            Hard rules: never send anything; output goes only to pending_approval/ for human
+            approval. If a stage fails, write pending_approval/run_${{ github.run_id }}/FAILED.md,
+            then commit and push whatever exists.

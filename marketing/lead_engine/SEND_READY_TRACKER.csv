@@ -1,0 +1,20 @@
+priority,company,country,tier,channel,verified_contact,get_contact_from,draft_ref,sequence_after,status
+1,AkmaStone,Saudi Arabia,1,WhatsApp,+966531972124,https://akmastone.com/contact-us/,run_2026-07-17_0857/drafts/README.md (AkmaStone),gulf_whatsapp_sequence.md,READY — send WhatsApp now
+2,Fanar Marble Factory,Saudi Arabia,1,WhatsApp/Email,,https://www.fanarmarble.com/ (contact page),run_2026-07-17_0857/drafts/README.md (Fanar),gulf_whatsapp_sequence.md,READY — grab number then send
+3,Saudi Marble & Granite (SMG),Saudi Arabia,1,Email (formal),,https://www.smg.com.sa/ (contact/LinkedIn),run_2026-07-17_0857/drafts/README.md (SMG),us_tariff not applicable — enterprise,READY — grab email then send
+4,Crown Stone,Canada,1,Email+LinkedIn,,https://www.crownstoneinc.com/ (Contact/About),run_2026-07-17_0857/drafts/README.md (Crown Stone),follow-up sequence,READY — grab purchasing email
+5,A&V Granite,Canada,1,Email+LinkedIn,,https://www.avgranite.com/ (Contact),run_2026-07-17_0857/drafts/README.md (A&V Granite),follow-up sequence,READY — grab email
+6,Hari Stones Limited,Canada,1,Phone+Web-form,+16044444274,https://www.haristoneslimited.com/contact-us,run_2026-07-17_0857/drafts/README.md (Hari Stones),follow-up sequence,READY — call or web-form
+7,Milestone Marble & Granite,Canada,1,Email+Web-form,,http://www.milestonemarble.com/ (Contact),use A&V draft as template,follow-up sequence,READY — grab email
+8,Granite Liquidators,USA,1,Email+LinkedIn,,https://graniteliquidators.com/ (Contact),us_tariff_email_1_day1.md,us_tariff 5-touch,READY — grab email + fill tariff tokens
+9,Colorado Stone Imports,USA,1,Email+LinkedIn,,https://coloradostoneimports.com/ (Contact),us_tariff_email_1_day1.md,us_tariff 5-touch,READY — grab email + fill tariff tokens
+10,Marble Trend,Canada,2,Email,,https://marbletrend.com/ (Contact),batch email,follow-up sequence,QUEUED — week 2
+11,Better Marble,Canada,2,Email,,https://www.bettermarble.ca/ (Contact),batch email,follow-up sequence,QUEUED — week 2
+12,Natural Stone Sales,USA,2,Email,,https://www.naturalstonesales.us/ (Contact),us_tariff_email_1_day1.md,us_tariff 5-touch,QUEUED — week 2
+13,Cactus Stone,USA,2,Email,,https://www.cactusstone.com/ (Contact),us_tariff_email_1_day1.md,us_tariff 5-touch,QUEUED — week 2
+14,The Stone Collection,USA,2,Email,,https://thestonecollection.com/ (Contact),us_tariff_email_1_day1.md,us_tariff 5-touch,QUEUED — week 2
+15,Mexi-Tile / Stone Expo,USA,2,Email,,https://www.mexitile.com/ (Contact),us_tariff_email_1_day1.md,us_tariff 5-touch,QUEUED — week 2
+16,Paving Slabs Direct,UK,2,Email,,https://www.pavingslabsdirect.co.uk/ (Contact),sandstone angle draft,follow-up sequence,QUEUED — week 2 (sandstone)
+17,Paving Slabs UK (Westone),UK,2,Email,,https://www.pavingslabsuk.co.uk/ (Contact),sandstone angle draft,follow-up sequence,QUEUED — week 2 (sandstone)
+18,Stone Paving Direct,UK,2,Email,,https://www.stonepavingdirect.co.uk/ (Contact),sandstone angle draft,follow-up sequence,QUEUED — week 2 (sandstone)
+19,Sia Stones,Germany,3,Email,,https://www.siastones.com/ (Contact),batch email,nurture,QUEUED — nurture
